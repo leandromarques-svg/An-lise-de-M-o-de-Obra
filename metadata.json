@@ -1,0 +1,6 @@
+{
+  "name": "Dash CS - Prestação de Serviços & Contratação",
+  "description": "Dashboard para Customer Success analisar modalidades de contratação, prestação de serviço, turnover e pautas para reunião com clientes a partir de arquivos CSV.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
