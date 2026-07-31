@@ -125,14 +125,14 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           </select>
         </div>
 
-        {/* 4. Cliente Select */}
+        {/* 4. Cliente (Grupo Econômico) Select */}
         <div className="shrink-0">
           <select
             value={filterState.clienteFilter}
             onChange={(e) => onFilterChange({ clienteFilter: e.target.value })}
             className="bg-slate-50/90 border border-slate-200/80 rounded-2xl text-xs font-semibold text-slate-800 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-[#470082]/20 focus:border-[#470082] cursor-pointer"
           >
-            <option value="">Cliente: Todos</option>
+            <option value="">Cliente / Grupo Econômico: Todos</option>
             {uniqueClientes.map((c) => (
               <option key={c} value={c}>
                 Cliente: {c}

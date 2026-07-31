@@ -46,6 +46,7 @@ export interface ContractExpirationItem {
   dataDemissao?: string;
   effectiveExpirationStr?: string;
   hasProrrogacao: boolean;
+  isAtivo: boolean;
   status: 'vencido' | 'a_vencer' | 'prorrogado_ativo' | 'prorrogado_vencido';
   daysToExpiration?: number;
 }
@@ -231,10 +232,24 @@ export function computeCsAnalytics(rows: CsvRow[]): CsDashboardData {
       admissoesMap[admYear] = (admissoesMap[admYear] || 0) + 1;
     }
 
-    const demDateStr = row['Data Demissão'] || row['Data Demissao'] || row['Demissão'] || row['Demissao'];
+    const demDateStr =
+      row['Data Demissão'] ||
+      row['Data Demisao'] ||
+      row['Data Demissão '] ||
+      row['Data Demisao '] ||
+      row['Demissão'] ||
+      row['Demissao'];
     const demYear = extractYear(demDateStr);
     if (demYear) {
       desligamentosMap[demYear] = (desligamentosMap[demYear] || 0) + 1;
+    }
+
+    // Active vs Desligado strictly determined by presence of Data Demissão
+    const hasDemDate = Boolean(demDateStr && demDateStr.trim().length > 0 && demDateStr.trim() !== '-');
+    if (hasDemDate) {
+      finishedCount += 1;
+    } else {
+      activeCount += 1;
     }
 
     // Contract Expirations & Extension Logic
@@ -262,51 +277,53 @@ export function computeCsAnalytics(rows: CsvRow[]): CsDashboardData {
       prorrogadosCount += 1;
     }
 
-    if (cleanVctoContr.length > 0 || cleanVctoProrr.length > 0) {
+    const hasContractDate = cleanVctoContr.length > 0 || cleanVctoProrr.length > 0;
+    if (hasContractDate) {
       totalWithContractDate += 1;
-
-      const effectiveStr = cleanVctoProrr || cleanVctoContr;
-      const effDate = parseFullDate(effectiveStr);
-      const demDate = parseFullDate(demDateStr);
-
-      let isVencido = false;
-      let daysToExpiration: number | undefined = undefined;
-
-      if (demDate) {
-        isVencido = true;
-      } else if (effDate) {
-        const diffMs = effDate.getTime() - today.getTime();
-        daysToExpiration = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-        if (daysToExpiration <= 0) {
-          isVencido = true;
-        }
-      } else {
-        isVencido = true;
-      }
-
-      if (isVencido) {
-        vencidosCount += 1;
-      } else {
-        aVencerCount += 1;
-      }
-
-      expirationsList.push({
-        id: `exp-${idx}`,
-        workerName,
-        cargo: workerCargo,
-        modality: workerModality,
-        dataAdmissao: admDate || '',
-        dataVctoContrato: cleanVctoContr,
-        dataVctoProrrogacao: cleanVctoProrr,
-        dataDemissao: demDateStr || '',
-        effectiveExpirationStr: effectiveStr,
-        hasProrrogacao,
-        status: isVencido
-          ? (hasProrrogacao ? 'prorrogado_vencido' : 'vencido')
-          : (hasProrrogacao ? 'prorrogado_ativo' : 'a_vencer'),
-        daysToExpiration,
-      });
     }
+
+    const effectiveStr = cleanVctoProrr || cleanVctoContr;
+    const effDate = parseFullDate(effectiveStr);
+
+    let isVencido = false;
+    let daysToExpiration: number | undefined = undefined;
+
+    if (hasDemDate) {
+      isVencido = true;
+    } else if (effDate) {
+      const diffMs = effDate.getTime() - today.getTime();
+      daysToExpiration = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      if (daysToExpiration <= 0) {
+        isVencido = true;
+      }
+    } else {
+      // Active worker with no explicit end date
+      isVencido = false;
+    }
+
+    if (isVencido) {
+      vencidosCount += 1;
+    } else {
+      aVencerCount += 1;
+    }
+
+    expirationsList.push({
+      id: `exp-${idx}`,
+      workerName,
+      cargo: workerCargo,
+      modality: workerModality,
+      dataAdmissao: admDate || '',
+      dataVctoContrato: cleanVctoContr,
+      dataVctoProrrogacao: cleanVctoProrr,
+      dataDemissao: hasDemDate ? (demDateStr || '') : '',
+      effectiveExpirationStr: effectiveStr,
+      hasProrrogacao,
+      isAtivo: !hasDemDate,
+      status: isVencido
+        ? (hasProrrogacao ? 'prorrogado_vencido' : 'vencido')
+        : (hasProrrogacao ? 'prorrogado_ativo' : 'a_vencer'),
+      daysToExpiration,
+    });
 
     // Modality (Vínculo Empregatício)
     const modKey =
@@ -338,20 +355,17 @@ export function computeCsAnalytics(rows: CsvRow[]): CsDashboardData {
       ) {
         voluntarySaidas += 1;
       }
-
-      if (!lower.includes('ativo') && !lower.includes('não especificado')) {
-        finishedCount += 1;
-      }
-    } else {
-      activeCount += 1;
     }
 
-    // Client Name
+    // Client Name (Grupo Econômico)
     const clientKey =
+      row['Grupo Econômico'] ||
+      row['Grupo Economico'] ||
+      row['Grupo Econômico '] ||
+      row['Grupo Economico '] ||
       row['Nome Cliente'] ||
       row['Cliente'] ||
       row['Empresa'] ||
-      row['Grupo Econômico'] ||
       'Cliente Único';
     const cleanClient = clientKey.trim();
     if (!clientsMap[cleanClient]) {

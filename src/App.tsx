@@ -138,7 +138,13 @@ export default function App() {
   const uniqueClientes = useMemo(() => {
     const set = new Set<string>();
     dataset.rows.forEach((r) => {
-      const val = r['Nome Cliente'] || r['Cliente'];
+      const val =
+        r['Grupo Econômico'] ||
+        r['Grupo Economico'] ||
+        r['Grupo Econômico '] ||
+        r['Grupo Economico '] ||
+        r['Nome Cliente'] ||
+        r['Cliente'];
       if (val && val.trim()) set.add(val.trim());
     });
     return Array.from(set).sort();
@@ -219,9 +225,15 @@ export default function App() {
         if (motivo !== filterState.motivoFilter) return false;
       }
 
-      // 7. Cliente Filter
+      // 7. Cliente (Grupo Econômico) Filter
       if (filterState.clienteFilter) {
-        const client = row['Nome Cliente'] || row['Cliente'];
+        const client =
+          row['Grupo Econômico'] ||
+          row['Grupo Economico'] ||
+          row['Grupo Econômico '] ||
+          row['Grupo Economico '] ||
+          row['Nome Cliente'] ||
+          row['Cliente'];
         if (client !== filterState.clienteFilter) return false;
       }
 

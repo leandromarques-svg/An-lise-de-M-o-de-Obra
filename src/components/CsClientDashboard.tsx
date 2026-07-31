@@ -22,6 +22,9 @@ import {
   CalendarX,
   RefreshCw,
   Search,
+  CalendarPlus,
+  Download,
+  ExternalLink,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -36,7 +39,7 @@ import {
   Legend,
   CartesianGrid,
 } from 'recharts';
-import { CsDashboardData } from '../utils/csAnalytics';
+import { CsDashboardData, parseFullDate, ContractExpirationItem } from '../utils/csAnalytics';
 import { formatCurrency } from '../utils/csvParser';
 
 interface CsClientDashboardProps {
@@ -45,6 +48,79 @@ interface CsClientDashboardProps {
   filename: string;
   onOpenUploader: () => void;
   onSwitchToTable: () => void;
+}
+
+function formatCalendarDates(dateStr?: string): { isoStart: string; isoEnd: string; alertDateStr: string } | null {
+  if (!dateStr) return null;
+  const parsed = parseFullDate(dateStr);
+  if (!parsed) return null;
+
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, '0');
+  const day = String(parsed.getDate()).padStart(2, '0');
+
+  const isoStart = `${year}${month}${day}T090000`;
+  const isoEnd = `${year}${month}${day}T100000`;
+
+  const alertDate = new Date(parsed);
+  alertDate.setDate(alertDate.getDate() - 10);
+  const alertDay = String(alertDate.getDate()).padStart(2, '0');
+  const alertMonth = String(alertDate.getMonth() + 1).padStart(2, '0');
+  const alertYear = alertDate.getFullYear();
+  const alertDateStr = `${alertDay}/${alertMonth}/${alertYear}`;
+
+  return { isoStart, isoEnd, alertDateStr };
+}
+
+function openGoogleCalendar(item: ContractExpirationItem) {
+  const targetDate = item.effectiveExpirationStr || item.dataVctoProrrogacao || item.dataVctoContrato;
+  const dates = formatCalendarDates(targetDate);
+  if (!dates) return;
+
+  const title = `[METARH] Vencimento de Contrato: ${item.workerName}`;
+  const details = `Acompanhamento de Vencimento do Contrato\nColaborador: ${item.workerName}\nCargo: ${item.cargo}\nModalidade: ${item.modality}\nData de Vencimento: ${targetDate}\n\n*Lembrete recomendado com 10 dias de antecedência: ${dates.alertDateStr}*`;
+
+  const gcalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&details=${encodeURIComponent(details)}&dates=${dates.isoStart}/${dates.isoEnd}`;
+  window.open(gcalUrl, '_blank');
+}
+
+function downloadIcsFile(item: ContractExpirationItem) {
+  const targetDate = item.effectiveExpirationStr || item.dataVctoProrrogacao || item.dataVctoContrato;
+  const dates = formatCalendarDates(targetDate);
+  if (!dates) return;
+
+  const title = `[METARH] Vencimento de Contrato: ${item.workerName}`;
+  const description = `Acompanhamento de Vencimento do Contrato\\nColaborador: ${item.workerName}\\nCargo: ${item.cargo}\\nModalidade: ${item.modality}\\nData de Vencimento: ${targetDate}\\nLembrete de antecedência de 10 dias configurado (${dates.alertDateStr}).`;
+
+  const icsContent = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//METARH//Dash CS//PT',
+    'CALSCALE:GREGORIAN',
+    'METHOD:REQUEST',
+    'BEGIN:VEVENT',
+    `SUMMARY:${title}`,
+    `DESCRIPTION:${description}`,
+    `DTSTART:${dates.isoStart}`,
+    `DTEND:${dates.isoEnd}`,
+    'BEGIN:VALARM',
+    'ACTION:DISPLAY',
+    'DESCRIPTION:Lembrete METARH - Vencimento de Contrato em 10 dias',
+    'TRIGGER:-P10D',
+    'END:VALARM',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n');
+
+  const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', `vencimento_${item.workerName.toLowerCase().replace(/[^a-z0-9]/g, '_')}.ics`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 const MODALITY_COLORS = ['#470082', '#aa3ffe', '#6404bc', '#10b981', '#f59e0b', '#ec4899', '#3b82f6', '#64748b'];
@@ -57,8 +133,10 @@ export const CsClientDashboard: React.FC<CsClientDashboardProps> = ({
   onSwitchToTable,
 }) => {
   const [cargoSortMode, setCargoSortMode] = useState<'count' | 'avgSalary' | 'totalSalary'>('count');
-  const [contractTab, setContractTab] = useState<'all' | 'vencidos' | 'a_vencer' | 'prorrogados'>('all');
+  const [contractTab, setContractTab] = useState<'all' | 'ativos' | 'a_vencer' | 'vencidos' | 'prorrogados'>('all');
   const [contractSearch, setContractSearch] = useState<string>('');
+
+  const isMultiClient = data.clients.length > 1;
 
   const contractExpirationsData = data.contractExpirations || {
     totalWithContractDate: 0,
@@ -75,7 +153,9 @@ export const CsClientDashboard: React.FC<CsClientDashboardProps> = ({
   const filteredExpirations = useMemo(() => {
     let list = contractExpirationsData.expirationsList || [];
 
-    if (contractTab === 'vencidos') {
+    if (contractTab === 'ativos') {
+      list = list.filter((item) => item.isAtivo);
+    } else if (contractTab === 'vencidos') {
       list = list.filter((item) => item.status === 'vencido' || item.status === 'prorrogado_vencido');
     } else if (contractTab === 'a_vencer') {
       list = list.filter((item) => item.status === 'a_vencer' || item.status === 'prorrogado_ativo');
@@ -139,12 +219,12 @@ export const CsClientDashboard: React.FC<CsClientDashboardProps> = ({
             <div className="flex items-center gap-2 mb-1.5">
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#470082] text-white shadow-2xs">
                 <Building2 className="w-3.5 h-3.5 mr-1 text-[#c9f545]" />
-                Cliente sob Análise CS
+                {isMultiClient ? 'Clientes METARH' : 'Cliente sob Análise CS'}
               </span>
               <span className="text-xs text-purple-900 font-semibold">• {filename}</span>
             </div>
             <h1 className="text-xl sm:text-2xl font-extrabold text-[#470082] tracking-tight">
-              {topClient?.name || clientName || 'Visão do Cliente'}
+              {isMultiClient ? 'Clientes METARH' : (topClient?.name || clientName || 'Visão do Cliente')}
             </h1>
           </div>
 
@@ -168,22 +248,45 @@ export const CsClientDashboard: React.FC<CsClientDashboardProps> = ({
 
         {/* Client Metadata Strip */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 text-xs">
-          <div>
-            <span className="text-[11px] font-bold text-purple-900/60 uppercase tracking-wider block">
-              CNPJ do Cliente
-            </span>
-            <span className="font-semibold text-slate-800">
-              {topClient?.cnpj || 'Não informado'}
-            </span>
-          </div>
-          <div>
-            <span className="text-[11px] font-bold text-purple-900/60 uppercase tracking-wider block">
-              RH Focal do Cliente
-            </span>
-            <span className="font-semibold text-slate-800 truncate block">
-              {topClient?.rhFocal || 'Não informado'}
-            </span>
-          </div>
+          {!isMultiClient ? (
+            <>
+              <div>
+                <span className="text-[11px] font-bold text-purple-900/60 uppercase tracking-wider block">
+                  CNPJ do Cliente
+                </span>
+                <span className="font-semibold text-slate-800">
+                  {topClient?.cnpj || 'Não informado'}
+                </span>
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-purple-900/60 uppercase tracking-wider block">
+                  RH Focal do Cliente
+                </span>
+                <span className="font-semibold text-slate-800 truncate block">
+                  {topClient?.rhFocal || 'Não informado'}
+                </span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <span className="text-[11px] font-bold text-purple-900/60 uppercase tracking-wider block">
+                  Grupos Econômicos
+                </span>
+                <span className="font-semibold text-slate-800">
+                  {data.clients.length} grupos atendidos
+                </span>
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-purple-900/60 uppercase tracking-wider block">
+                  Escopo Operacional
+                </span>
+                <span className="font-semibold text-slate-800 truncate block">
+                  Visão Multicliente METARH
+                </span>
+              </div>
+            </>
+          )}
           <div>
             <span className="text-[11px] font-bold text-purple-900/60 uppercase tracking-wider block">
               Prestadores Ativos/Registrados
@@ -377,14 +480,14 @@ export const CsClientDashboard: React.FC<CsClientDashboardProps> = ({
             </button>
 
             <button
-              onClick={() => setContractTab('vencidos')}
+              onClick={() => setContractTab('ativos')}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                contractTab === 'vencidos'
-                  ? 'bg-rose-600 text-white shadow-2xs'
-                  : 'text-rose-700 hover:bg-rose-100/70'
+                contractTab === 'ativos'
+                  ? 'bg-emerald-700 text-white shadow-2xs'
+                  : 'text-emerald-800 hover:bg-emerald-100/70'
               }`}
             >
-              Já Vencidos ({contractExpirationsData.vencidosCount})
+              Colaboradores Ativos ({contractExpirationsData.expirationsList.filter((i) => i.isAtivo).length})
             </button>
 
             <button
@@ -396,6 +499,17 @@ export const CsClientDashboard: React.FC<CsClientDashboardProps> = ({
               }`}
             >
               A Vencer ({contractExpirationsData.aVencerCount})
+            </button>
+
+            <button
+              onClick={() => setContractTab('vencidos')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                contractTab === 'vencidos'
+                  ? 'bg-rose-600 text-white shadow-2xs'
+                  : 'text-rose-700 hover:bg-rose-100/70'
+              }`}
+            >
+              Já Vencidos ({contractExpirationsData.vencidosCount})
             </button>
 
             <button
@@ -439,59 +553,99 @@ export const CsClientDashboard: React.FC<CsClientDashboardProps> = ({
                   <th className="py-2.5 px-3 text-center">Vcto. Inicial</th>
                   <th className="py-2.5 px-3 text-center">Vcto. Prorrogação</th>
                   <th className="py-2.5 px-3 text-center">Status da Vigência</th>
+                  <th className="py-2.5 px-3 text-center">Agenda (-10d)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
-                {filteredExpirations.slice(0, 50).map((item) => (
-                  <tr key={item.id} className="hover:bg-purple-50/20 transition-colors">
-                    <td className="py-2.5 px-3 font-semibold text-slate-900">
-                      <div className="font-bold text-slate-900">{item.workerName}</div>
-                      <div className="text-[11px] text-slate-500 font-normal">{item.cargo}</div>
-                    </td>
-                    <td className="py-2.5 px-3">
-                      <span className="inline-block text-[11px] px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">
-                        {item.modality}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 text-center font-mono text-slate-600 text-[11px]">
-                      {item.dataAdmissao || '-'}
-                    </td>
-                    <td className="py-2.5 px-3 text-center font-mono font-semibold text-slate-800 text-[11px]">
-                      {item.dataVctoContrato || '-'}
-                    </td>
-                    <td className="py-2.5 px-3 text-center font-mono text-[11px]">
-                      {item.dataVctoProrrogacao ? (
-                        <span className="font-bold text-[#470082] bg-purple-50 px-2 py-0.5 rounded border border-purple-100">
-                          {item.dataVctoProrrogacao}
+                {filteredExpirations.slice(0, 50).map((item) => {
+                  const targetDate = item.effectiveExpirationStr || item.dataVctoProrrogacao || item.dataVctoContrato;
+                  const canAddToCalendar =
+                    item.isAtivo &&
+                    Boolean(targetDate) &&
+                    (item.status === 'a_vencer' || item.status === 'prorrogado_ativo');
+
+                  return (
+                    <tr key={item.id} className="hover:bg-purple-50/20 transition-colors">
+                      <td className="py-2.5 px-3 font-semibold text-slate-900">
+                        <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                          {item.workerName}
+                          {!item.isAtivo && (
+                            <span className="text-[10px] px-1.5 py-0.2 bg-rose-100 text-rose-800 rounded font-semibold">
+                              Desligado
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-slate-500 font-normal">{item.cargo}</div>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <span className="inline-block text-[11px] px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">
+                          {item.modality}
                         </span>
-                      ) : (
-                        <span className="text-slate-400 font-normal">Sem aditivo</span>
-                      )}
-                    </td>
-                    <td className="py-2.5 px-3 text-center">
-                      {item.status === 'vencido' && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                          <CalendarX className="w-3 h-3" /> Já Vencido
-                        </span>
-                      )}
-                      {item.status === 'a_vencer' && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                          <Clock className="w-3 h-3" /> A Vencer
-                        </span>
-                      )}
-                      {item.status === 'prorrogado_ativo' && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-purple-50 text-[#470082] border border-purple-200">
-                          <RefreshCw className="w-3 h-3" /> Prorrogado (Ativo)
-                        </span>
-                      )}
-                      {item.status === 'prorrogado_vencido' && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
-                          <RefreshCw className="w-3 h-3" /> Prorrogado (Vencido)
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-mono text-slate-600 text-[11px]">
+                        {item.dataAdmissao || '-'}
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-mono font-semibold text-slate-800 text-[11px]">
+                        {item.dataVctoContrato || '-'}
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-mono text-[11px]">
+                        {item.dataVctoProrrogacao ? (
+                          <span className="font-bold text-[#470082] bg-purple-50 px-2 py-0.5 rounded border border-purple-100">
+                            {item.dataVctoProrrogacao}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 font-normal">Sem aditivo</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        {item.status === 'vencido' && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                            <CalendarX className="w-3 h-3" /> Já Vencido
+                          </span>
+                        )}
+                        {item.status === 'a_vencer' && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                            <Clock className="w-3 h-3" /> A Vencer
+                          </span>
+                        )}
+                        {item.status === 'prorrogado_ativo' && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-purple-50 text-[#470082] border border-purple-200">
+                            <RefreshCw className="w-3 h-3" /> Prorrogado (Ativo)
+                          </span>
+                        )}
+                        {item.status === 'prorrogado_vencido' && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
+                            <RefreshCw className="w-3 h-3" /> Prorrogado (Vencido)
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        {canAddToCalendar ? (
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => openGoogleCalendar(item)}
+                              title="Agendar evento no Google Agenda (Lembrete prévio de 10 dias)"
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded bg-purple-50 hover:bg-purple-100 text-[#470082] text-[11px] font-bold border border-purple-200 transition-colors cursor-pointer"
+                            >
+                              <CalendarPlus className="w-3 h-3 text-[#470082]" />
+                              <span>Google</span>
+                            </button>
+                            <button
+                              onClick={() => downloadIcsFile(item)}
+                              title="Baixar arquivo .ICS para Outlook/iCal (Lembrete prévio de 10 dias)"
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold border border-slate-200 transition-colors cursor-pointer"
+                            >
+                              <Download className="w-3 h-3 text-slate-600" />
+                              <span>.ICS</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 text-[11px] font-normal">-</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
