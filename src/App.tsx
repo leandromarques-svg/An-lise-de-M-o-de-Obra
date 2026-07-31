@@ -32,8 +32,8 @@ export default function App() {
   // Whether the user has uploaded/selected a client dataset or is on landing screen
   const [hasLoadedClient, setHasLoadedClient] = useState<boolean>(false);
 
-  // Active view: 'dashboard' (CS Reunião & Modalidades) or 'table' (Lista Operacional)
-  const [activeView, setActiveView] = useState<'dashboard' | 'table'>('dashboard');
+  // Active view: 'dashboard' (CS Reunião), 'contracts' (Vigência & Prazos) or 'table' (Lista Operacional)
+  const [activeView, setActiveView] = useState<'dashboard' | 'contracts' | 'table'>('dashboard');
 
   // Main dataset state
   const [dataset, setDataset] = useState<CsvDataset>(() =>
@@ -580,16 +580,31 @@ export default function App() {
         />
 
         {/* VIEW 1: EXECUTIVE CS DASHBOARD */}
-        {activeView === 'dashboard' ? (
+        {activeView === 'dashboard' && (
           <CsClientDashboard
             data={csAnalyticsData}
             clientName={dataset.filename.replace('.csv', '').toUpperCase()}
             filename={dataset.filename}
             onOpenUploader={() => setIsUploaderOpen(true)}
             onSwitchToTable={() => setActiveView('table')}
+            onSwitchToContracts={() => setActiveView('contracts')}
           />
-        ) : (
-          /* VIEW 2: OPERATIONAL TABLE & FILTERS */
+        )}
+
+        {/* VIEW 2: DEDICATED CONTRACTS & EXPIRATIONS TAB */}
+        {activeView === 'contracts' && (
+          <CsClientDashboard
+            data={csAnalyticsData}
+            clientName={dataset.filename.replace('.csv', '').toUpperCase()}
+            filename={dataset.filename}
+            onOpenUploader={() => setIsUploaderOpen(true)}
+            onSwitchToTable={() => setActiveView('table')}
+            standaloneContractsOnly={true}
+          />
+        )}
+
+        {/* VIEW 3: OPERATIONAL TABLE & FILTERS */}
+        {activeView === 'table' && (
           <div className="space-y-6 flex-1 flex flex-col">
             
             {/* KPI Summary Cards */}

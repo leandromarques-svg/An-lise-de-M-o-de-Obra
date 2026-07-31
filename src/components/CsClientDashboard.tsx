@@ -48,6 +48,8 @@ interface CsClientDashboardProps {
   filename: string;
   onOpenUploader: () => void;
   onSwitchToTable: () => void;
+  onSwitchToContracts?: () => void;
+  standaloneContractsOnly?: boolean;
 }
 
 function formatCalendarDates(dateStr?: string): { isoStart: string; isoEnd: string; alertDateStr: string } | null {
@@ -131,6 +133,8 @@ export const CsClientDashboard: React.FC<CsClientDashboardProps> = ({
   filename,
   onOpenUploader,
   onSwitchToTable,
+  onSwitchToContracts,
+  standaloneContractsOnly = false,
 }) => {
   const [cargoSortMode, setCargoSortMode] = useState<'count' | 'avgSalary' | 'totalSalary'>('count');
   const [contractTab, setContractTab] = useState<'all' | 'ativos' | 'a_vencer' | 'vencidos' | 'prorrogados'>('all');
@@ -208,6 +212,456 @@ export const CsClientDashboard: React.FC<CsClientDashboardProps> = ({
     }
     return Math.max(...sortedCargos.map((c) => c.count));
   }, [sortedCargos, cargoSortMode]);
+
+  if (standaloneContractsOnly) {
+    return (
+      <div className="space-y-6 font-barlow">
+        {/* Dedicated Top Banner: Gestão de Vigência & Contratos */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-slate-100 pb-5">
+            <div>
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#470082] text-white shadow-2xs">
+                  <Clock className="w-3.5 h-3.5 mr-1 text-[#c9f545]" />
+                  Aba Dedicada: Gestão de Vigência & Prazos
+                </span>
+                <span className="text-xs text-purple-900 font-semibold">• {filename}</span>
+              </div>
+              <h1 className="text-xl sm:text-2xl font-extrabold text-[#470082] tracking-tight">
+                Gestão de Vigência, Vencimento & Prorrogação de Contratos
+              </h1>
+              <p className="text-xs text-slate-500 mt-1">
+                Monitoramento exclusivo do quadro ativo, contratos com término previsto, aditivos de prorrogação e alertas de agenda para {topClient?.name || clientName || 'o cliente'}.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5">
+              <button
+                onClick={onOpenUploader}
+                className="inline-flex items-center px-3.5 py-2 text-xs font-bold rounded-md bg-purple-50 hover:bg-purple-100 text-[#470082] border border-purple-200 transition-colors cursor-pointer"
+              >
+                <FileSpreadsheet className="w-4 h-4 mr-1.5 text-[#470082]" />
+                <span>Subir Outro Cliente (CSV)</span>
+              </button>
+              <button
+                onClick={onSwitchToTable}
+                className="inline-flex items-center px-4 py-2 text-xs font-bold rounded-md bg-[#470082] hover:bg-[#380068] text-white shadow-xs transition-colors cursor-pointer"
+              >
+                <span>Ver Tabela Operacional</span>
+                <ArrowUpRight className="w-4 h-4 ml-1.5 text-[#c9f545]" />
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Metrics Strip */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 text-xs">
+            <div>
+              <span className="text-[11px] font-bold text-purple-900/60 uppercase tracking-wider block">
+                Total de Profissionais
+              </span>
+              <span className="font-extrabold text-[#470082] text-sm">
+                {data.totalWorkers} cadastrados
+              </span>
+            </div>
+            <div>
+              <span className="text-[11px] font-bold text-purple-900/60 uppercase tracking-wider block">
+                Colaboradores Ativos
+              </span>
+              <span className="font-extrabold text-emerald-700 text-sm">
+                {data.contractStatus.active} em operação
+              </span>
+            </div>
+            <div>
+              <span className="text-[11px] font-bold text-purple-900/60 uppercase tracking-wider block">
+                Contratos A Vencer
+              </span>
+              <span className="font-extrabold text-amber-800 text-sm">
+                {contractExpirationsData.aVencerCount} com data prevista
+              </span>
+            </div>
+            <div>
+              <span className="text-[11px] font-bold text-purple-900/60 uppercase tracking-wider block">
+                Com Aditivo de Prorrogação
+              </span>
+              <span className="font-extrabold text-[#470082] text-sm">
+                {contractExpirationsData.prorrogadosCount} com termo
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* SEÇÃO: GESTÃO DE VIGÊNCIA DE CONTRATOS */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-5 border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 bg-purple-50 text-[#470082] border border-purple-200 rounded-xl flex items-center justify-center shrink-0">
+                <Clock className="w-5 h-5 text-[#470082]" />
+              </div>
+              <div>
+                <h2 className="text-base font-extrabold text-[#470082] tracking-tight">
+                  Painel Operacional de Vigência e Lembretes de Agenda
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Acompanhe vencimentos, aditivos contratuais e exporte alertas prévios de 10 dias para o Google Agenda ou Outlook
+                </p>
+              </div>
+            </div>
+
+            <span className="text-xs font-bold px-3 py-1 bg-purple-50 text-[#470082] border border-purple-200 rounded-full w-fit">
+              {contractExpirationsData.totalWithContractDate} contratos monitorados
+            </span>
+          </div>
+
+          {/* 4 Summary KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {/* Card 1: Colaboradores Ativos */}
+            <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-4 flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-800 block">
+                  Colaboradores Ativos
+                </span>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-2xl font-black text-emerald-950">
+                    {contractExpirationsData.expirationsList.filter((i) => i.isAtivo).length}
+                  </span>
+                  <span className="text-xs font-bold text-emerald-700">
+                    ({data.totalWorkers > 0 ? ((contractExpirationsData.expirationsList.filter((i) => i.isAtivo).length / data.totalWorkers) * 100).toFixed(1) : 0}% do quadro)
+                  </span>
+                </div>
+                <p className="text-[11px] text-emerald-600 mt-0.5">Em operação / Vigência ativa</p>
+              </div>
+              <div className="w-10 h-10 bg-emerald-100 text-emerald-800 rounded-xl flex items-center justify-center shrink-0 border border-emerald-200">
+                <Users className="w-5 h-5" />
+              </div>
+            </div>
+
+            {/* Card 2: Já Vencidos */}
+            <div className="bg-rose-50/50 border border-rose-200 rounded-xl p-4 flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-rose-800 block">
+                  Contratos Já Vencidos
+                </span>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-2xl font-black text-rose-900">
+                    {contractExpirationsData.vencidosCount}
+                  </span>
+                  <span className="text-xs font-bold text-rose-700">
+                    ({contractExpirationsData.vencidosPercentage}% do total)
+                  </span>
+                </div>
+                <p className="text-[11px] text-rose-600 mt-0.5">Prazo expirado ou encerrado</p>
+              </div>
+              <div className="w-10 h-10 bg-rose-100 text-rose-700 rounded-xl flex items-center justify-center shrink-0 border border-rose-200">
+                <CalendarX className="w-5 h-5" />
+              </div>
+            </div>
+
+            {/* Card 3: A Vencer */}
+            <div className="bg-amber-50/50 border border-amber-200 rounded-xl p-4 flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-amber-800 block">
+                  Contratos A Vencer
+                </span>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-2xl font-black text-amber-900">
+                    {contractExpirationsData.aVencerCount}
+                  </span>
+                  <span className="text-xs font-bold text-amber-700">
+                    ({contractExpirationsData.aVencerPercentage}% do total)
+                  </span>
+                </div>
+                <p className="text-[11px] text-amber-600 mt-0.5">Vigência ativa a renovar ou finalizar</p>
+              </div>
+              <div className="w-10 h-10 bg-amber-100 text-amber-700 rounded-xl flex items-center justify-center shrink-0 border border-amber-200">
+                <Clock className="w-5 h-5" />
+              </div>
+            </div>
+
+            {/* Card 4: De Prorrogação */}
+            <div className="bg-purple-50/50 border border-purple-200 rounded-xl p-4 flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#470082] block">
+                  Contratos com Prorrogação
+                </span>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-2xl font-black text-[#470082]">
+                    {contractExpirationsData.prorrogadosCount}
+                  </span>
+                  <span className="text-xs font-bold text-purple-700">
+                    ({contractExpirationsData.prorrogadosPercentage}% com aditivo)
+                  </span>
+                </div>
+                <p className="text-[11px] text-purple-600 mt-0.5">Data Vcto Prorrogação cadastrada</p>
+              </div>
+              <div className="w-10 h-10 bg-purple-100 text-[#470082] rounded-xl flex items-center justify-center shrink-0 border border-purple-200">
+                <RefreshCw className="w-5 h-5" />
+              </div>
+            </div>
+          </div>
+
+          {/* Filter Controls Bar */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-4 bg-slate-50 p-2 rounded-xl border border-slate-200">
+            {/* Tabs */}
+            <div className="flex flex-wrap items-center gap-1">
+              <button
+                onClick={() => setContractTab('all')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  contractTab === 'all'
+                    ? 'bg-[#470082] text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
+                }`}
+              >
+                Todos ({contractExpirationsData.expirationsList.length})
+              </button>
+
+              <button
+                onClick={() => setContractTab('ativos')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  contractTab === 'ativos'
+                    ? 'bg-emerald-700 text-white shadow-2xs'
+                    : 'text-emerald-800 hover:bg-emerald-100/70'
+                }`}
+              >
+                Colaboradores Ativos ({contractExpirationsData.expirationsList.filter((i) => i.isAtivo).length})
+              </button>
+
+              <button
+                onClick={() => setContractTab('a_vencer')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  contractTab === 'a_vencer'
+                    ? 'bg-amber-600 text-white shadow-2xs'
+                    : 'text-amber-800 hover:bg-amber-100/70'
+                }`}
+              >
+                A Vencer ({contractExpirationsData.aVencerCount})
+              </button>
+
+              <button
+                onClick={() => setContractTab('vencidos')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  contractTab === 'vencidos'
+                    ? 'bg-rose-600 text-white shadow-2xs'
+                    : 'text-rose-700 hover:bg-rose-100/70'
+                }`}
+              >
+                Já Vencidos ({contractExpirationsData.vencidosCount})
+              </button>
+
+              <button
+                onClick={() => setContractTab('prorrogados')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  contractTab === 'prorrogados'
+                    ? 'bg-purple-700 text-white shadow-2xs'
+                    : 'text-purple-800 hover:bg-purple-100/70'
+                }`}
+              >
+                Com Prorrogação ({contractExpirationsData.prorrogadosCount})
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative min-w-[220px]">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Buscar colaborador ou cargo..."
+                value={contractSearch}
+                onChange={(e) => setContractSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-[#470082]"
+              />
+            </div>
+          </div>
+
+          {/* Table List */}
+          {filteredExpirations.length === 0 ? (
+            <div className="py-8 text-center text-xs text-slate-500 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+              Nenhum contrato encontrado para os filtros selecionados.
+            </div>
+          ) : (
+            <div className="overflow-x-auto border border-slate-100 rounded-xl max-h-[500px] overflow-y-auto">
+              <table className="w-full text-left border-collapse">
+                <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider z-10">
+                  <tr>
+                    <th className="py-2.5 px-3">Colaborador / Função</th>
+                    <th className="py-2.5 px-3">Modalidade</th>
+                    <th className="py-2.5 px-3 text-center">Admissão</th>
+                    <th className="py-2.5 px-3 text-center">Vcto. Inicial</th>
+                    <th className="py-2.5 px-3 text-center">Vcto. Prorrogação</th>
+                    <th className="py-2.5 px-3 text-center">Status da Vigência</th>
+                    <th className="py-2.5 px-3 text-center">Agenda (-10d)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs">
+                  {filteredExpirations.map((item) => {
+                    const targetDate = item.effectiveExpirationStr || item.dataVctoProrrogacao || item.dataVctoContrato;
+                    const canAddToCalendar =
+                      item.isAtivo &&
+                      Boolean(targetDate) &&
+                      (item.status === 'a_vencer' || item.status === 'prorrogado_ativo');
+
+                    return (
+                      <tr key={item.id} className="hover:bg-purple-50/20 transition-colors">
+                        <td className="py-2.5 px-3 font-semibold text-slate-900">
+                          <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                            {item.workerName}
+                            {!item.isAtivo && (
+                              <span className="text-[10px] px-1.5 py-0.2 bg-rose-100 text-rose-800 rounded font-semibold">
+                                Desligado
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-slate-500 font-normal">{item.cargo}</div>
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <span className="inline-block text-[11px] px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">
+                            {item.modality}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-center font-mono text-slate-600 text-[11px]">
+                          {item.dataAdmissao || '-'}
+                        </td>
+                        <td className="py-2.5 px-3 text-center font-mono font-semibold text-slate-800 text-[11px]">
+                          {item.dataVctoContrato || '-'}
+                        </td>
+                        <td className="py-2.5 px-3 text-center font-mono text-[11px]">
+                          {item.dataVctoProrrogacao ? (
+                            <span className="font-bold text-[#470082] bg-purple-50 px-2 py-0.5 rounded border border-purple-100">
+                              {item.dataVctoProrrogacao}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 font-normal">Sem aditivo</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 text-center">
+                          {item.status === 'vencido' && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                              <CalendarX className="w-3 h-3" /> Já Vencido
+                            </span>
+                          )}
+                          {item.status === 'a_vencer' && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                              <Clock className="w-3 h-3" /> A Vencer
+                            </span>
+                          )}
+                          {item.status === 'prorrogado_ativo' && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-purple-50 text-[#470082] border border-purple-200">
+                              <RefreshCw className="w-3 h-3" /> Prorrogado (Ativo)
+                            </span>
+                          )}
+                          {item.status === 'prorrogado_vencido' && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
+                              <RefreshCw className="w-3 h-3" /> Prorrogado (Vencido)
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 text-center">
+                          {canAddToCalendar ? (
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                onClick={() => openGoogleCalendar(item)}
+                                title="Agendar evento no Google Agenda (Lembrete prévio de 10 dias)"
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded bg-purple-50 hover:bg-purple-100 text-[#470082] text-[11px] font-bold border border-purple-200 transition-colors cursor-pointer"
+                              >
+                                <CalendarPlus className="w-3 h-3 text-[#470082]" />
+                                <span>Google</span>
+                              </button>
+                              <button
+                                onClick={() => downloadIcsFile(item)}
+                                title="Baixar arquivo .ICS para Outlook/iCal (Lembrete prévio de 10 dias)"
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold border border-slate-200 transition-colors cursor-pointer"
+                              >
+                                <Download className="w-3 h-3 text-slate-600" />
+                                <span>.ICS</span>
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 text-[11px] font-normal">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* DISTRIBUIÇÃO DAS CONTRATAÇÕES E DESLIGAMENTOS POR ANO */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5 border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 bg-purple-50 text-[#470082] border border-purple-200 rounded-xl flex items-center justify-center shrink-0">
+                <Calendar className="w-5 h-5 text-[#470082]" />
+              </div>
+              <div>
+                <h2 className="text-base font-extrabold text-[#470082] tracking-tight">
+                  Distribuição de Contratações e Desligamentos por Ano
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Evolução temporal de Admissões (contratações) vs. Demissões (desligamentos) na conta do cliente
+                </p>
+              </div>
+            </div>
+            <span className="text-xs font-bold px-3 py-1 bg-purple-50 text-[#470082] border border-purple-200 rounded-full w-fit">
+              Histórico Temporal
+            </span>
+          </div>
+
+          {data.yearlyStats.length === 0 ? (
+            <div className="p-6 text-center text-xs text-slate-400">
+              Nenhuma data de admissão ou demissão registrada no arquivo para mapeamento anual.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
+              <div className="lg:col-span-2 h-[280px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={data.yearlyStats} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="year" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#ffffff',
+                        borderRadius: '0.75rem',
+                        border: '1px solid #e2e8f0',
+                        fontSize: '12px',
+                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                      }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                    <Bar dataKey="admissoes" name="Admissões (Entradas)" fill="#470082" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="demissoes" name="Demissões (Saídas)" fill="#f43f5e" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
+                <h3 className="font-extrabold text-[#470082] text-sm mb-2 border-b border-slate-200 pb-2">
+                  Resumo de Movimentações Anuais
+                </h3>
+                <div className="max-h-[220px] overflow-y-auto space-y-2 pr-1">
+                  {data.yearlyStats.map((st) => (
+                    <div key={st.year} className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200/80 shadow-2xs">
+                      <span className="font-extrabold text-slate-800 font-mono text-sm">{st.year}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-emerald-700 font-bold flex items-center gap-1">
+                          <UserPlus className="w-3 h-3" /> {st.admissoes}
+                        </span>
+                        <span className="text-rose-700 font-bold flex items-center gap-1">
+                          <UserMinus className="w-3 h-3" /> {st.demissoes}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 font-barlow">
@@ -393,14 +847,46 @@ export const CsClientDashboard: React.FC<CsClientDashboardProps> = ({
             </div>
           </div>
 
-          <span className="text-xs font-bold px-3 py-1 bg-purple-50 text-[#470082] border border-purple-200 rounded-full w-fit">
-            {contractExpirationsData.totalWithContractDate} contratos monitorados
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold px-3 py-1 bg-purple-50 text-[#470082] border border-purple-200 rounded-full w-fit">
+              {contractExpirationsData.totalWithContractDate} contratos monitorados
+            </span>
+            {onSwitchToContracts && (
+              <button
+                onClick={onSwitchToContracts}
+                className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#470082] hover:bg-[#380068] text-white text-xs font-bold rounded-full transition-colors cursor-pointer shadow-2xs"
+              >
+                <span>Ver em Aba Exclusiva</span>
+                <ArrowUpRight className="w-3.5 h-3.5 text-[#c9f545]" />
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* 3 Summary KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          {/* Card 1: Já Vencidos */}
+        {/* 4 Summary KPI Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {/* Card 1: Colaboradores Ativos */}
+          <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-4 flex items-center justify-between">
+            <div>
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-800 block">
+                Colaboradores Ativos
+              </span>
+              <div className="flex items-baseline gap-2 mt-1">
+                <span className="text-2xl font-black text-emerald-950">
+                  {contractExpirationsData.expirationsList.filter((i) => i.isAtivo).length}
+                </span>
+                <span className="text-xs font-bold text-emerald-700">
+                  ({data.totalWorkers > 0 ? ((contractExpirationsData.expirationsList.filter((i) => i.isAtivo).length / data.totalWorkers) * 100).toFixed(1) : 0}% do quadro)
+                </span>
+              </div>
+              <p className="text-[11px] text-emerald-600 mt-0.5">Em operação / Vigência ativa</p>
+            </div>
+            <div className="w-10 h-10 bg-emerald-100 text-emerald-800 rounded-xl flex items-center justify-center shrink-0 border border-emerald-200">
+              <Users className="w-5 h-5" />
+            </div>
+          </div>
+
+          {/* Card 2: Já Vencidos */}
           <div className="bg-rose-50/50 border border-rose-200 rounded-xl p-4 flex items-center justify-between">
             <div>
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-rose-800 block">
@@ -421,7 +907,7 @@ export const CsClientDashboard: React.FC<CsClientDashboardProps> = ({
             </div>
           </div>
 
-          {/* Card 2: A Vencer */}
+          {/* Card 3: A Vencer */}
           <div className="bg-amber-50/50 border border-amber-200 rounded-xl p-4 flex items-center justify-between">
             <div>
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-amber-800 block">
@@ -442,7 +928,7 @@ export const CsClientDashboard: React.FC<CsClientDashboardProps> = ({
             </div>
           </div>
 
-          {/* Card 3: De Prorrogação */}
+          {/* Card 4: De Prorrogação */}
           <div className="bg-purple-50/50 border border-purple-200 rounded-xl p-4 flex items-center justify-between">
             <div>
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#470082] block">

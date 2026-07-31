@@ -7,6 +7,7 @@ import {
   Filter,
   BarChart2,
   Table,
+  Clock,
 } from 'lucide-react';
 import { MetarhLogo } from './MetarhLogo';
 
@@ -14,8 +15,8 @@ interface HeaderProps {
   filename: string;
   totalRows: number;
   filteredRows: number;
-  activeView: 'dashboard' | 'table';
-  onChangeView: (view: 'dashboard' | 'table') => void;
+  activeView: 'dashboard' | 'contracts' | 'table';
+  onChangeView: (view: 'dashboard' | 'contracts' | 'table') => void;
   onOpenUploader: () => void;
   onResetDefault: () => void;
   onExportCsv: () => void;
@@ -73,7 +74,18 @@ export const Header: React.FC<HeaderProps> = ({
                 }`}
               >
                 <BarChart2 className="w-3.5 h-3.5 text-[#aa3ffe]" />
-                <span>Painel CS & Reunião</span>
+                <span>Painel CS</span>
+              </button>
+              <button
+                onClick={() => onChangeView('contracts')}
+                className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-all cursor-pointer ${
+                  activeView === 'contracts'
+                    ? 'bg-white text-[#470082] font-extrabold shadow-xs'
+                    : 'text-purple-200 hover:text-white hover:bg-purple-800/40'
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5 text-[#c9f545]" />
+                <span>Gestão de Contratos</span>
               </button>
               <button
                 onClick={() => onChangeView('table')}
