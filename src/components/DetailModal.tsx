@@ -21,10 +21,10 @@ import { formatCurrency, parseSalaryNumber } from '../utils/csvParser';
 interface DetailModalProps {
   row: CsvRow | null;
   onClose: () => void;
-  onEdit: (row: CsvRow) => void;
+  onEdit?: (row: CsvRow) => void;
 }
 
-export const DetailModal: React.FC<DetailModalProps> = ({ row, onClose, onEdit }) => {
+export const DetailModal: React.FC<DetailModalProps> = ({ row, onClose }) => {
   const [copied, setCopied] = useState(false);
 
   if (!row) return null;
@@ -231,16 +231,6 @@ export const DetailModal: React.FC<DetailModalProps> = ({ row, onClose, onEdit }
           </button>
 
           <div className="flex items-center space-x-2">
-            <button
-              onClick={() => {
-                onClose();
-                onEdit(row);
-              }}
-              className="inline-flex items-center px-4 py-2 text-xs font-semibold rounded-md bg-indigo-600 hover:bg-indigo-700 text-white transition-colors shadow-xs cursor-pointer"
-            >
-              <Edit2 className="w-4 h-4 mr-1.5" />
-              <span>Editar Registro</span>
-            </button>
             <button
               onClick={onClose}
               className="inline-flex items-center px-4 py-2 text-xs font-semibold rounded-md bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 transition-colors shadow-xs cursor-pointer"

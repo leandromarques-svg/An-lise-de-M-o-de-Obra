@@ -1,5 +1,5 @@
 import React from 'react';
-import { Columns, RotateCcw } from 'lucide-react';
+import { Columns, RotateCcw, Search, User, X } from 'lucide-react';
 import { FilterState } from '../types';
 import { SearchableSelect, SelectOption } from './SearchableSelect';
 
@@ -35,6 +35,14 @@ const MONTH_OPTIONS: SelectOption[] = [
   { value: '12', label: '12 - Dezembro' },
 ];
 
+const AREA_OPTIONS: SelectOption[] = [
+  { value: 'todos', label: 'Todas as Áreas' },
+  { value: 'pontos_focais', label: 'RH, Financeiro e Compras' },
+  { value: 'rh', label: 'RH & Gestão de Pessoas' },
+  { value: 'financeiro', label: 'Financeiro & Controladoria' },
+  { value: 'compras', label: 'Compras & Suprimentos' },
+];
+
 export const FilterBar: React.FC<FilterBarProps> = ({
   filterState,
   onFilterChange,
@@ -61,12 +69,40 @@ export const FilterBar: React.FC<FilterBarProps> = ({
     Boolean(filterState.rhFocalFilter) ||
     Boolean(filterState.anoFilter) ||
     Boolean(filterState.mesFilter) ||
+    Boolean(filterState.nomeFilter) ||
+    (Boolean(filterState.areaEstrategicaFilter) && filterState.areaEstrategicaFilter !== 'todos') ||
     Object.keys(filterState.columnFilters).some((k) => filterState.columnFilters[k]);
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/90 p-3 sm:p-4 mb-6 shadow-xs space-y-3">
       {/* Horizontal Pill Filter Row */}
       <div className="flex flex-wrap items-center gap-2.5">
+        {/* 0. Person Name Filter Input */}
+        <div className="relative inline-flex items-center min-w-[190px] max-w-[240px] shrink-0">
+          <User className="w-3.5 h-3.5 text-purple-700 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            value={filterState.nomeFilter || ''}
+            onChange={(e) => onFilterChange({ nomeFilter: e.target.value })}
+            placeholder="Nome da pessoa..."
+            className={`w-full pl-8 pr-7 py-1.5 rounded-2xl text-xs font-semibold border transition-all ${
+              filterState.nomeFilter
+                ? 'bg-purple-50 text-[#470082] border-purple-300 font-extrabold focus:outline-none ring-2 ring-purple-400/30'
+                : 'bg-slate-50 text-slate-800 border-slate-200 placeholder-slate-400 hover:border-slate-300 focus:outline-none focus:border-[#470082] focus:bg-white'
+            }`}
+          />
+          {filterState.nomeFilter && (
+            <button
+              type="button"
+              onClick={() => onFilterChange({ nomeFilter: '' })}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-purple-700 hover:text-purple-900 p-0.5 rounded-full hover:bg-purple-100"
+              title="Limpar busca de nome"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+
         {/* 1. Status Segmented Pill: Todos | Ativos | Desligados */}
         <div className="inline-flex items-center bg-slate-100/90 p-1 rounded-2xl border border-slate-200/80 text-xs font-semibold shrink-0">
           <button
@@ -104,7 +140,15 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           </button>
         </div>
 
-        {/* 2. Vínculo Select */}
+        {/* 2. Área / Departamento Select */}
+        <SearchableSelect
+          label="Área / Departamento"
+          value={filterState.areaEstrategicaFilter || ''}
+          options={AREA_OPTIONS}
+          onChange={(val) => onFilterChange({ areaEstrategicaFilter: val })}
+        />
+
+        {/* 3. Vínculo Select */}
         <SearchableSelect
           label="Vínculo"
           value={filterState.vinculoFilter}
@@ -112,7 +156,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           onChange={(val) => onFilterChange({ vinculoFilter: val })}
         />
 
-        {/* 3. Cliente (Grupo Econômico) Select */}
+        {/* 4. Cliente (Grupo Econômico) Select */}
         <SearchableSelect
           label="Cliente"
           value={filterState.clienteFilter}
@@ -120,7 +164,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           onChange={(val) => onFilterChange({ clienteFilter: val })}
         />
 
-        {/* 4. Região Select */}
+        {/* 5. Região Select */}
         <SearchableSelect
           label="Região"
           value={filterState.regiaoFilter}
@@ -128,7 +172,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           onChange={(val) => onFilterChange({ regiaoFilter: val })}
         />
 
-        {/* 5. RH Focal Select */}
+        {/* 6. RH Focal Select */}
         <SearchableSelect
           label="RH Focal"
           value={filterState.rhFocalFilter}
@@ -136,7 +180,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           onChange={(val) => onFilterChange({ rhFocalFilter: val })}
         />
 
-        {/* 6. Ano Select */}
+        {/* 7. Ano Select */}
         <SearchableSelect
           label="Ano"
           value={filterState.anoFilter}
@@ -144,7 +188,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           onChange={(val) => onFilterChange({ anoFilter: val })}
         />
 
-        {/* 7. Mês Select */}
+        {/* 8. Mês Select */}
         <SearchableSelect
           label="Mês"
           value={filterState.mesFilter || ''}
@@ -152,10 +196,10 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           onChange={(val) => onFilterChange({ mesFilter: val })}
         />
 
-        {/* 8. Cargo Select */}
+        {/* 9. Cargo Select */}
         {uniqueCargos.length > 0 && (
           <SearchableSelect
-            label="Cargo"
+            label="Cargo Especifico"
             value={filterState.cargoFilter}
             options={uniqueCargos}
             onChange={(val) => onFilterChange({ cargoFilter: val })}

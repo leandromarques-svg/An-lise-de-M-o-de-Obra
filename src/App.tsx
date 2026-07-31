@@ -7,7 +7,7 @@ import {
   exportToCsvString,
   downloadFile,
 } from './utils/csvParser';
-import { computeCsAnalytics, extractYear, extractMonth } from './utils/csAnalytics';
+import { computeCsAnalytics, extractYear, extractMonth, isCargoAreaMatch } from './utils/csAnalytics';
 import {
   CsvDataset,
   CsvRow,
@@ -26,7 +26,7 @@ import { EditRowModal } from './components/EditRowModal';
 import { ColumnVisibilityModal } from './components/ColumnVisibilityModal';
 import { UploadLandingScreen } from './components/UploadLandingScreen';
 import { CsClientDashboard } from './components/CsClientDashboard';
-import { Trash2, Check } from 'lucide-react';
+import { Check } from 'lucide-react';
 
 export default function App() {
   // Whether the user has uploaded/selected a client dataset or is on landing screen
@@ -290,6 +290,30 @@ export default function App() {
         }
       }
 
+      // 11. Nome Filter
+      if (filterState.nomeFilter) {
+        const query = filterState.nomeFilter.toLowerCase().trim();
+        const nameVal =
+          row['Nome do Funcionário'] ||
+          row['Nome'] ||
+          row['Colaborador'] ||
+          row['Nome Colaborador'] ||
+          row['Nome do Colaborador'] ||
+          row['Funcionario'] ||
+          '';
+        if (!String(nameVal).toLowerCase().includes(query)) {
+          return false;
+        }
+      }
+
+      // 12. Área Estratégica (Mapeamento Focal: RH, Financeiro, Compras) Filter
+      if (filterState.areaEstrategicaFilter && filterState.areaEstrategicaFilter !== 'todos') {
+        const cargo = row['Cargo ou Função'] || row['Cargo'] || '';
+        if (!isCargoAreaMatch(cargo, filterState.areaEstrategicaFilter)) {
+          return false;
+        }
+      }
+
       return true;
     });
   }, [dataset, filterState]);
@@ -398,6 +422,9 @@ export default function App() {
       selectedClientes: [],
       rhFocalFilter: '',
       anoFilter: '',
+      mesFilter: '',
+      nomeFilter: '',
+      areaEstrategicaFilter: 'todos',
       columnFilters: {},
     });
     setSortConfig({ column: null, direction: 'asc' });
@@ -628,26 +655,6 @@ export default function App() {
             {/* KPI Summary Cards */}
             <SummaryCards metrics={summaryMetrics} />
 
-            {/* Bulk Action Banner */}
-            {selectedRowIndices.length > 0 && (
-              <div className="bg-slate-900 text-white px-4 py-2.5 rounded-xl flex items-center justify-between shadow-xs text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold bg-indigo-600 px-2.5 py-1 rounded-md">
-                    {selectedRowIndices.length} selecionados
-                  </span>
-                  <span>Ações em massa para as linhas marcadas:</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleBulkDelete}
-                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 rounded-md font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" /> Excluir Selecionados
-                  </button>
-                </div>
-              </div>
-            )}
-
             {/* Data Table */}
             <div className="flex-1">
               <DataTable
@@ -656,18 +663,9 @@ export default function App() {
                 sortConfig={sortConfig}
                 onSort={handleSort}
                 onSelectRow={(row) => setActiveDetailRow(row)}
-                onEditRow={(row, sortedIdx) => {
-                  const originalIndex = dataset.rows.indexOf(row);
-                  setActiveEditRowIndex(originalIndex >= 0 ? originalIndex : null);
-                  setIsEditModalOpen(true);
-                }}
-                onDeleteRow={handleDeleteRow}
                 currentPage={currentPage}
                 rowsPerPage={rowsPerPage}
                 onPageChange={setCurrentPage}
-                selectedRowIndices={selectedRowIndices}
-                onToggleSelectRow={handleToggleSelectRow}
-                onToggleSelectAll={handleToggleSelectAllOnPage}
               />
             </div>
           </div>
@@ -685,11 +683,6 @@ export default function App() {
         <DetailModal
           row={activeDetailRow}
           onClose={() => setActiveDetailRow(null)}
-          onEdit={(row) => {
-            const originalIndex = dataset.rows.indexOf(row);
-            setActiveEditRowIndex(originalIndex >= 0 ? originalIndex : null);
-            setIsEditModalOpen(true);
-          }}
         />
       )}
 

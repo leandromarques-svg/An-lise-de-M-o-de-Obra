@@ -26,6 +26,8 @@ export interface FilterState {
   rhFocalFilter: string;
   anoFilter: string;
   mesFilter?: string;
+  nomeFilter?: string;
+  areaEstrategicaFilter?: string;
   columnFilters: Record<string, string>;
   minSalary?: number;
   maxSalary?: number;

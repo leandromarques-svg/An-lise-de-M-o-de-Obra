@@ -124,6 +124,117 @@ export function extractYear(dateStr?: string): string | null {
   return null;
 }
 
+export function isCargoAreaMatch(cargoStr?: string, area?: string): boolean {
+  if (!area || area === 'todos') return true;
+  if (!cargoStr) return false;
+  const cargo = String(cargoStr).toLowerCase();
+
+  const isRh =
+    cargo.includes('rh') ||
+    cargo.includes('recursos humanos') ||
+    cargo.includes('people') ||
+    cargo.includes('talent') ||
+    cargo.includes('recrutam') ||
+    cargo.includes('gestão de pessoas') ||
+    cargo.includes('gestao de pessoas') ||
+    cargo.includes('business partner') ||
+    cargo.includes('bp');
+
+  const isFin =
+    cargo.includes('financ') ||
+    cargo.includes('contab') ||
+    cargo.includes('tesour') ||
+    cargo.includes('controlad') ||
+    cargo.includes('cfo') ||
+    cargo.includes('faturam') ||
+    cargo.includes('fiscal') ||
+    cargo.includes('auditor');
+
+  const isCompras =
+    cargo.includes('compra') ||
+    cargo.includes('supriment') ||
+    cargo.includes('procurement') ||
+    cargo.includes('buyer') ||
+    cargo.includes('sourcing') ||
+    cargo.includes('almoxarif');
+
+  if (area === 'rh') return isRh;
+  if (area === 'financeiro') return isFin;
+  if (area === 'compras') return isCompras;
+  if (area === 'pontos_focais') return isRh || isFin || isCompras;
+
+  return true;
+}
+
+export function getCargoAreaTag(cargoStr?: string): {
+  type: 'rh' | 'financeiro' | 'compras';
+  label: string;
+  bgClass: string;
+  textClass: string;
+  borderClass: string;
+} | null {
+  if (!cargoStr) return null;
+  const cargo = String(cargoStr).toLowerCase();
+
+  if (
+    cargo.includes('rh') ||
+    cargo.includes('recursos humanos') ||
+    cargo.includes('people') ||
+    cargo.includes('talent') ||
+    cargo.includes('recrutam') ||
+    cargo.includes('gestão de pessoas') ||
+    cargo.includes('gestao de pessoas') ||
+    cargo.includes('business partner') ||
+    cargo.includes('bp')
+  ) {
+    return {
+      type: 'rh',
+      label: '👥 RH / Pessoas',
+      bgClass: 'bg-purple-50',
+      textClass: 'text-[#470082]',
+      borderClass: 'border-purple-200',
+    };
+  }
+
+  if (
+    cargo.includes('financ') ||
+    cargo.includes('contab') ||
+    cargo.includes('tesour') ||
+    cargo.includes('controlad') ||
+    cargo.includes('cfo') ||
+    cargo.includes('faturam') ||
+    cargo.includes('fiscal') ||
+    cargo.includes('auditor')
+  ) {
+    return {
+      type: 'financeiro',
+      label: '💰 Financeiro',
+      bgClass: 'bg-emerald-50',
+      textClass: 'text-emerald-800',
+      borderClass: 'border-emerald-200',
+    };
+  }
+
+  if (
+    cargo.includes('compra') ||
+    cargo.includes('supriment') ||
+    cargo.includes('procurement') ||
+    cargo.includes('buyer') ||
+    cargo.includes('sourcing') ||
+    cargo.includes('almoxarif')
+  ) {
+    return {
+      type: 'compras',
+      label: '🛒 Compras',
+      bgClass: 'bg-amber-50',
+      textClass: 'text-amber-800',
+      borderClass: 'border-amber-200',
+    };
+  }
+
+  return null;
+}
+
 export function extractMonth(dateStr?: string): string | null {
   if (!dateStr) return null;
   const str = String(dateStr).trim();

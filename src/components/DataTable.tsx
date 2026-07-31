@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { CsvRow, ColumnMeta, SortConfig } from '../types';
 import { formatCurrency, parseSalaryNumber } from '../utils/csvParser';
+import { getCargoAreaTag } from '../utils/csAnalytics';
 
 interface DataTableProps {
   rows: CsvRow[];
@@ -24,14 +25,14 @@ interface DataTableProps {
   sortConfig: SortConfig;
   onSort: (columnKey: string) => void;
   onSelectRow: (row: CsvRow) => void;
-  onEditRow: (row: CsvRow, index: number) => void;
-  onDeleteRow: (index: number) => void;
+  onEditRow?: (row: CsvRow, index: number) => void;
+  onDeleteRow?: (index: number) => void;
   currentPage: number;
   rowsPerPage: number;
   onPageChange: (newPage: number) => void;
-  selectedRowIndices: number[];
-  onToggleSelectRow: (index: number) => void;
-  onToggleSelectAll: () => void;
+  selectedRowIndices?: number[];
+  onToggleSelectRow?: (index: number) => void;
+  onToggleSelectAll?: () => void;
 }
 
 export const DataTable: React.FC<DataTableProps> = ({
@@ -40,14 +41,9 @@ export const DataTable: React.FC<DataTableProps> = ({
   sortConfig,
   onSort,
   onSelectRow,
-  onEditRow,
-  onDeleteRow,
   currentPage,
   rowsPerPage,
   onPageChange,
-  selectedRowIndices,
-  onToggleSelectRow,
-  onToggleSelectAll,
 }) => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -57,10 +53,6 @@ export const DataTable: React.FC<DataTableProps> = ({
 
   const startIndex = (validPage - 1) * rowsPerPage;
   const pageRows = rows.slice(startIndex, startIndex + rowsPerPage);
-
-  const isAllPageSelected =
-    pageRows.length > 0 &&
-    pageRows.every((_, idx) => selectedRowIndices.includes(startIndex + idx));
 
   const handleCopyText = (text: string, id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -133,6 +125,25 @@ export const DataTable: React.FC<DataTableProps> = ({
       return <span className="font-mono text-xs text-slate-700">{val}</span>;
     }
 
+    // Cargo with Focal Area badge
+    if (key.includes('cargo')) {
+      const tag = getCargoAreaTag(val);
+      return (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-slate-800 text-xs font-medium truncate max-w-[220px]" title={val}>
+            {val}
+          </span>
+          {tag && (
+            <span
+              className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded border ${tag.bgClass} ${tag.textClass} ${tag.borderClass} shrink-0`}
+            >
+              {tag.label}
+            </span>
+          )}
+        </div>
+      );
+    }
+
     // General text
     return <span className="text-slate-800 text-xs truncate max-w-[260px] block" title={val}>{val}</span>;
   };
@@ -164,19 +175,9 @@ export const DataTable: React.FC<DataTableProps> = ({
           <thead className="bg-slate-50 text-slate-700 text-xs font-bold uppercase tracking-wider sticky top-0 z-20 border-b border-slate-200">
             <tr>
               
-              {/* Checkbox */}
-              <th className="py-3.5 px-3 w-10 text-center bg-slate-50 sticky left-0 z-30 border-b border-slate-200">
-                <input
-                  type="checkbox"
-                  checked={isAllPageSelected}
-                  onChange={onToggleSelectAll}
-                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                />
-              </th>
-
               {/* Actions Header */}
-              <th className="py-3.5 px-3 w-24 text-center bg-slate-50 border-b border-slate-200">
-                Ações
+              <th className="py-3.5 px-3 w-16 text-center bg-slate-50 border-b border-slate-200">
+                Ver
               </th>
 
               {/* Dynamic Columns */}
@@ -213,58 +214,27 @@ export const DataTable: React.FC<DataTableProps> = ({
           <tbody className="divide-y divide-slate-200/80 bg-white text-xs">
             {pageRows.map((row, relativeIdx) => {
               const actualIdx = startIndex + relativeIdx;
-              const isSelected = selectedRowIndices.includes(actualIdx);
 
               return (
                 <tr
                   key={actualIdx}
                   onClick={() => onSelectRow(row)}
                   className={`hover:bg-slate-50 transition-colors cursor-pointer ${
-                    isSelected ? 'bg-indigo-50/50' : relativeIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'
+                    relativeIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'
                   }`}
                 >
-                  
-                  {/* Select Checkbox */}
+                  {/* View Details Column */}
                   <td
-                    className="py-3 px-3 text-center sticky left-0 z-10 bg-inherit border-r border-slate-100"
+                    className="py-2.5 px-2 text-center"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => onToggleSelectRow(actualIdx)}
-                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                    />
-                  </td>
-
-                  {/* Actions Column */}
-                  <td
-                    className="py-3 px-2 text-center"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div className="flex items-center justify-center space-x-1">
-                      <button
-                        onClick={() => onSelectRow(row)}
-                        className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
-                        title="Ver detalhes"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => onEditRow(row, actualIdx)}
-                        className="p-1 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
-                        title="Editar registro"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => onDeleteRow(actualIdx)}
-                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
-                        title="Excluir registro"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => onSelectRow(row)}
+                      className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors inline-flex items-center justify-center"
+                      title="Ver detalhes"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
                   </td>
 
                   {/* Column Data Cells */}
@@ -293,13 +263,6 @@ export const DataTable: React.FC<DataTableProps> = ({
           </span>{' '}
           de <span className="font-semibold text-slate-900">{totalRows}</span> registros
         </div>
-
-        {/* Selected count info */}
-        {selectedRowIndices.length > 0 && (
-          <div className="text-blue-700 font-medium">
-            {selectedRowIndices.length} registro(s) selecionado(s)
-          </div>
-        )}
 
         {/* Page navigation controls */}
         {totalPages > 1 && (

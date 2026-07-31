@@ -20,8 +20,8 @@ interface HeaderProps {
   onOpenUploader: () => void;
   onResetDefault: () => void;
   onExportCsv: () => void;
-  onExportJson: () => void;
-  onAddRow: () => void;
+  onExportJson?: () => void;
+  onAddRow?: () => void;
   onOpenColumnConfig: () => void;
   visibleColumnCount: number;
   totalColumnCount: number;
@@ -116,16 +116,6 @@ export const Header: React.FC<HeaderProps> = ({
 
             {activeView === 'table' && (
               <>
-                {/* Add row */}
-                <button
-                  onClick={onAddRow}
-                  className="inline-flex items-center px-3 py-2 text-xs sm:text-sm font-semibold rounded-md bg-purple-800/60 hover:bg-purple-800 text-white border border-purple-400/30 transition-colors duration-150 cursor-pointer"
-                  title="Adicionar um novo registro manualmente"
-                >
-                  <Plus className="w-4 h-4 mr-1.5 text-[#c9f545]" />
-                  <span>Novo Registro</span>
-                </button>
-
                 {/* Column config */}
                 <button
                   onClick={onOpenColumnConfig}
