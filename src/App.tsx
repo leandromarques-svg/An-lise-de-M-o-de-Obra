@@ -64,6 +64,7 @@ export default function App() {
     regiaoFilter: '',
     motivoFilter: '',
     clienteFilter: '',
+    selectedClientes: [],
     rhFocalFilter: '',
     anoFilter: '',
     columnFilters: {},
@@ -226,15 +227,26 @@ export default function App() {
       }
 
       // 7. Cliente (Grupo Econômico) Filter
-      if (filterState.clienteFilter) {
+      if (filterState.selectedClientes && filterState.selectedClientes.length > 0) {
         const client =
           row['Grupo Econômico'] ||
           row['Grupo Economico'] ||
           row['Grupo Econômico '] ||
           row['Grupo Economico '] ||
           row['Nome Cliente'] ||
-          row['Cliente'];
-        if (client !== filterState.clienteFilter) return false;
+          row['Cliente'] ||
+          '';
+        if (!filterState.selectedClientes.includes(client.trim())) return false;
+      } else if (filterState.clienteFilter) {
+        const client =
+          row['Grupo Econômico'] ||
+          row['Grupo Economico'] ||
+          row['Grupo Econômico '] ||
+          row['Grupo Economico '] ||
+          row['Nome Cliente'] ||
+          row['Cliente'] ||
+          '';
+        if (client.trim() !== filterState.clienteFilter.trim()) return false;
       }
 
       // 8. RH Focal Filter
@@ -365,6 +377,7 @@ export default function App() {
       regiaoFilter: '',
       motivoFilter: '',
       clienteFilter: '',
+      selectedClientes: [],
       rhFocalFilter: '',
       anoFilter: '',
       columnFilters: {},
@@ -373,11 +386,23 @@ export default function App() {
     setCurrentPage(1);
   };
 
-  const handleDatasetUploaded = (rawContent: string, filename: string) => {
+  const handleDatasetUploaded = (
+    rawContent: string,
+    filename: string,
+    selectedGroups?: string[]
+  ) => {
     const newDs = parseCsvString(rawContent, filename);
     setDataset(newDs);
     setSelectedRowIndices([]);
     handleResetFilters();
+
+    if (selectedGroups && selectedGroups.length > 0) {
+      setFilterState((prev) => ({
+        ...prev,
+        selectedClientes: selectedGroups,
+      }));
+    }
+
     setHasLoadedClient(true);
     setActiveView('dashboard');
 
@@ -638,10 +663,18 @@ export default function App() {
       {isUploaderOpen && (
         <CsvUploaderModal
           onClose={() => setIsUploaderOpen(false)}
-          onApplyDataset={(newDs) => {
+          onApplyDataset={(newDs, selectedGroups) => {
             setDataset(newDs);
             setSelectedRowIndices([]);
             handleResetFilters();
+
+            if (selectedGroups && selectedGroups.length > 0) {
+              setFilterState((prev) => ({
+                ...prev,
+                selectedClientes: selectedGroups,
+              }));
+            }
+
             setHasLoadedClient(true);
             setActiveView('dashboard');
 

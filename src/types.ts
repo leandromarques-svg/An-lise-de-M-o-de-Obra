@@ -22,6 +22,7 @@ export interface FilterState {
   regiaoFilter: string;
   motivoFilter: string;
   clienteFilter: string;
+  selectedClientes?: string[];
   rhFocalFilter: string;
   anoFilter: string;
   columnFilters: Record<string, string>;

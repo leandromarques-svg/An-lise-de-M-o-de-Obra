@@ -2,10 +2,11 @@ import React, { useState, useRef } from 'react';
 import { X, Upload, FileText, CheckCircle, AlertTriangle } from 'lucide-react';
 import { parseCsvString } from '../utils/csvParser';
 import { CsvDataset } from '../types';
+import { GrupoEconomicoSelector } from './GrupoEconomicoSelector';
 
 interface CsvUploaderModalProps {
   onClose: () => void;
-  onApplyDataset: (dataset: CsvDataset) => void;
+  onApplyDataset: (dataset: CsvDataset, selectedGroups?: string[]) => void;
 }
 
 export const CsvUploaderModal: React.FC<CsvUploaderModalProps> = ({ onClose, onApplyDataset }) => {
@@ -14,6 +15,7 @@ export const CsvUploaderModal: React.FC<CsvUploaderModalProps> = ({ onClose, onA
   const [filename, setFilename] = useState('novo_arquivo.csv');
   const [dragActive, setDragActive] = useState(false);
   const [parsedPreview, setParsedPreview] = useState<CsvDataset | null>(null);
+  const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -41,6 +43,7 @@ export const CsvUploaderModal: React.FC<CsvUploaderModalProps> = ({ onClose, onA
         return;
       }
       setParsedPreview(dataset);
+      setSelectedGroups([]);
     } catch (err: any) {
       setErrorMsg('Erro ao ler CSV: ' + (err.message || 'Formato inválido'));
       setParsedPreview(null);
@@ -58,7 +61,7 @@ export const CsvUploaderModal: React.FC<CsvUploaderModalProps> = ({ onClose, onA
 
   const handleConfirm = () => {
     if (parsedPreview) {
-      onApplyDataset(parsedPreview);
+      onApplyDataset(parsedPreview, selectedGroups);
       onClose();
     }
   };
@@ -76,7 +79,7 @@ export const CsvUploaderModal: React.FC<CsvUploaderModalProps> = ({ onClose, onA
             <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center shrink-0">
               <Upload className="w-4 h-4" />
             </div>
-            <h2 className="text-base font-bold text-slate-900">Carregar ou Colar CSV</h2>
+            <h2 className="text-base font-bold text-slate-900">Carregar ou Colar CSV do Cliente</h2>
           </div>
           <button
             onClick={onClose}
@@ -92,7 +95,7 @@ export const CsvUploaderModal: React.FC<CsvUploaderModalProps> = ({ onClose, onA
             onClick={() => setTab('upload')}
             className={`flex-1 py-3 px-4 text-center border-b-2 transition-colors cursor-pointer ${
               tab === 'upload'
-                ? 'border-indigo-600 text-indigo-600 bg-white'
+                ? 'border-indigo-600 text-indigo-600 bg-white font-bold'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -102,7 +105,7 @@ export const CsvUploaderModal: React.FC<CsvUploaderModalProps> = ({ onClose, onA
             onClick={() => setTab('paste')}
             className={`flex-1 py-3 px-4 text-center border-b-2 transition-colors cursor-pointer ${
               tab === 'paste'
-                ? 'border-indigo-600 text-indigo-600 bg-white'
+                ? 'border-indigo-600 text-indigo-600 bg-white font-bold'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -161,10 +164,10 @@ export const CsvUploaderModal: React.FC<CsvUploaderModalProps> = ({ onClose, onA
               </label>
               <textarea
                 id="csvRawTextarea"
-                rows={8}
+                rows={6}
                 value={pasteText}
                 onChange={(e) => handlePasteChange(e.target.value)}
-                placeholder={`Cód.Func.;Nome;Cargo;Salário Base\n101;MARIA SILVA;ANALISTA;4500,00`}
+                placeholder={`Cód.Func.;Nome;Cargo;Salário Base;Grupo Econômico\n101;MARIA SILVA;ANALISTA;4500,00;GRUPO HIDROVIAS`}
                 className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               />
             </div>
@@ -178,35 +181,21 @@ export const CsvUploaderModal: React.FC<CsvUploaderModalProps> = ({ onClose, onA
             </div>
           )}
 
-          {/* Parsed Preview info */}
+          {/* Parsed Preview & Grupo Econômico Selection */}
           {parsedPreview && (
-            <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl space-y-2">
-              <div className="flex items-center gap-2 text-emerald-800 text-xs font-bold">
-                <CheckCircle className="w-4 h-4 text-emerald-600" />
-                <span>CSV identificado com sucesso!</span>
+            <div className="space-y-4 pt-2">
+              <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-xl flex items-center gap-2 text-emerald-800 text-xs font-bold">
+                <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>CSV válido: {parsedPreview.rows.length} registros e {parsedPreview.headers.length} colunas</span>
               </div>
-              <p className="text-xs text-emerald-700">
-                Arquivo: <strong className="font-semibold">{parsedPreview.filename}</strong> •{' '}
-                <strong className="font-semibold">{parsedPreview.rows.length}</strong> registros e{' '}
-                <strong className="font-semibold">{parsedPreview.headers.length}</strong> colunas.
-              </p>
-              
-              {/* Preview headers badge */}
-              <div className="flex flex-wrap gap-1 mt-2">
-                {parsedPreview.headers.slice(0, 8).map((h) => (
-                  <span
-                    key={h}
-                    className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-900 text-[10px] font-mono border border-emerald-200"
-                  >
-                    {h}
-                  </span>
-                ))}
-                {parsedPreview.headers.length > 8 && (
-                  <span className="px-2 py-0.5 text-[10px] text-emerald-700 italic">
-                    +{parsedPreview.headers.length - 8} colunas
-                  </span>
-                )}
-              </div>
+
+              {/* Selector */}
+              <GrupoEconomicoSelector
+                rows={parsedPreview.rows}
+                selectedGroups={selectedGroups}
+                onChangeSelectedGroups={setSelectedGroups}
+                showConfirmButton={false}
+              />
             </div>
           )}
 
@@ -223,9 +212,9 @@ export const CsvUploaderModal: React.FC<CsvUploaderModalProps> = ({ onClose, onA
           <button
             onClick={handleConfirm}
             disabled={!parsedPreview}
-            className="px-5 py-2 text-xs font-semibold rounded-md bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-xs cursor-pointer"
+            className="px-5 py-2 text-xs font-semibold rounded-md bg-[#470082] hover:bg-[#380068] text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-xs cursor-pointer"
           >
-            Carregar na Tabela
+            Carregar no Dashboard
           </button>
         </div>
 
