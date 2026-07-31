@@ -25,6 +25,7 @@ export interface FilterState {
   selectedClientes?: string[];
   rhFocalFilter: string;
   anoFilter: string;
+  mesFilter?: string;
   columnFilters: Record<string, string>;
   minSalary?: number;
   maxSalary?: number;

@@ -124,6 +124,30 @@ export function extractYear(dateStr?: string): string | null {
   return null;
 }
 
+export function extractMonth(dateStr?: string): string | null {
+  if (!dateStr) return null;
+  const str = String(dateStr).trim();
+  if (!str) return null;
+
+  // DD/MM/YYYY
+  const partsSlash = str.split('/');
+  if (partsSlash.length >= 2) {
+    const m = partsSlash[1].trim();
+    if (m.length <= 2 && !isNaN(Number(m))) {
+      return m.padStart(2, '0');
+    }
+  }
+
+  // YYYY-MM-DD or DD-MM-YYYY
+  const partsDash = str.split('-');
+  if (partsDash.length >= 2) {
+    const m = partsDash[1].trim();
+    if (m.length <= 2 && !isNaN(Number(m))) return m.padStart(2, '0');
+  }
+
+  return null;
+}
+
 export function parseFullDate(dateStr?: string): Date | null {
   if (!dateStr) return null;
   const str = String(dateStr).trim();

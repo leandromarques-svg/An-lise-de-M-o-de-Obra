@@ -7,7 +7,7 @@ import {
   exportToCsvString,
   downloadFile,
 } from './utils/csvParser';
-import { computeCsAnalytics, extractYear } from './utils/csAnalytics';
+import { computeCsAnalytics, extractYear, extractMonth } from './utils/csAnalytics';
 import {
   CsvDataset,
   CsvRow,
@@ -67,6 +67,7 @@ export default function App() {
     selectedClientes: [],
     rhFocalFilter: '',
     anoFilter: '',
+    mesFilter: '',
     columnFilters: {},
   });
 
@@ -268,6 +269,23 @@ export default function App() {
         const admYear = extractYear(adm);
         const demYear = extractYear(demDate);
         if (admYear !== filterState.anoFilter && demYear !== filterState.anoFilter) {
+          return false;
+        }
+      }
+
+      // 10. Mês Filter
+      if (filterState.mesFilter) {
+        const adm = row['Data Admissão'] || row['Data Admissao'] || row['Admissão'];
+        const demDate = row['Data Demissão'] || row['Data Demissao'] || row['Demissão'];
+        const vcto = row['Data Vcto Contrato'] || row['Data Vencimento Contrato'] || row['Data Vcto Prorrogação'];
+        const admMonth = extractMonth(adm);
+        const demMonth = extractMonth(demDate);
+        const vctoMonth = extractMonth(vcto);
+        if (
+          admMonth !== filterState.mesFilter &&
+          demMonth !== filterState.mesFilter &&
+          vctoMonth !== filterState.mesFilter
+        ) {
           return false;
         }
       }
