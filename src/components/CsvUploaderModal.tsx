@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { X, Upload, FileText, CheckCircle, AlertTriangle } from 'lucide-react';
+import { X, Upload, FileText, CheckCircle, AlertTriangle, Info, Mail } from 'lucide-react';
 import { parseCsvString } from '../utils/csvParser';
 import { CsvDataset } from '../types';
 import { GrupoEconomicoSelector } from './GrupoEconomicoSelector';
@@ -87,6 +87,21 @@ export const CsvUploaderModal: React.FC<CsvUploaderModalProps> = ({ onClose, onA
           >
             <X className="w-5 h-5" />
           </button>
+        </div>
+
+        {/* CS Info Alert Bar */}
+        <div className="bg-purple-50 border-b border-purple-100 px-6 py-2.5 flex items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2 text-purple-900 font-semibold">
+            <Info className="w-4 h-4 text-[#470082] shrink-0" />
+            <span>Precisa da planilha do seu Grupo Econômico? Solicite ao time de CS.</span>
+          </div>
+          <a
+            href="mailto:cs@metarh.com.br?subject=Solicita%C3%A7%C3%A3o%20da%20Rela%C3%A7%C3%A3o%20de%20Alocados"
+            className="inline-flex items-center gap-1 font-bold text-[#470082] hover:underline shrink-0"
+          >
+            <Mail className="w-3.5 h-3.5" />
+            <span>cs@metarh.com.br</span>
+          </a>
         </div>
 
         {/* Tabs */}

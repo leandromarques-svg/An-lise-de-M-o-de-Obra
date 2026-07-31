@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload, FileText, FileSpreadsheet, ArrowRight, ShieldCheck, ArrowLeft, RefreshCw } from 'lucide-react';
+import { Upload, FileText, FileSpreadsheet, ArrowRight, ShieldCheck, ArrowLeft, Mail, Info, Check, Copy } from 'lucide-react';
 import { MetarhLogo } from './MetarhLogo';
 import { parseCsvString } from '../utils/csvParser';
 import { CsvDataset } from '../types';
@@ -22,7 +22,17 @@ export const UploadLandingScreen: React.FC<UploadLandingScreenProps> = ({
   const [pasteText, setPasteText] = useState('');
   const [dragActive, setDragActive] = useState(false);
   const [filenameInput, setFilenameInput] = useState('cliente_dados.csv');
+  const [copiedEmail, setCopiedEmail] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const csEmail = 'cs@metarh.com.br';
+
+  const handleCopyEmail = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(csEmail);
+    setCopiedEmail(true);
+    setTimeout(() => setCopiedEmail(false), 2000);
+  };
 
   // State for pending dataset (Step 2: Group Selection)
   const [pendingDataset, setPendingDataset] = useState<CsvDataset | null>(null);
@@ -88,7 +98,7 @@ export const UploadLandingScreen: React.FC<UploadLandingScreenProps> = ({
       <div className="max-w-4xl mx-auto w-full my-auto py-8">
         
         {/* Header Branding with METARH Logo */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <div className="flex items-center justify-center mb-4">
             <MetarhLogo className="h-10 sm:h-12 w-auto" fillColor="#401669" />
           </div>
@@ -99,6 +109,51 @@ export const UploadLandingScreen: React.FC<UploadLandingScreenProps> = ({
           <p className="text-sm sm:text-base text-slate-600 max-w-2xl mx-auto mt-2.5">
             Suba a lista do cliente em CSV para apresentar a análise de modalidades de contratação, motivos de desligamento, ranking de cargos e evolução de admissões por ano.
           </p>
+        </div>
+
+        {/* CS Support Request Banner for Clients */}
+        <div className="mb-6 bg-gradient-to-r from-purple-50 via-indigo-50/60 to-purple-50 border border-purple-200/90 rounded-2xl p-4 sm:p-5 shadow-2xs text-left flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-[#470082] text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5 sm:mt-0">
+              <Info className="w-5 h-5 text-[#c9f545]" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-[#470082]">
+                Acesso às Informações do seu Grupo Econômico
+              </h3>
+              <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                Para acessar as informações e indicadores consolidados do seu grupo, solicite ao time de Customer Success a relação de alocados atualizada.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end border-t sm:border-t-0 border-purple-200/50 pt-3 sm:pt-0">
+            <a
+              href={`mailto:${csEmail}?subject=Solicita%C3%A7%C3%A3o%20da%20Rela%C3%A7%C3%A3o%20de%20Alocados%20-%20Grupo%20Econ%C3%B4mico&body=Ol%C3%A1%20Time%20de%20CS%20da%20MetaRH%2C%0A%0AGostaria%20de%20solicitar%20a%20rela%C3%A7%C3%A3o%20de%20alocados%20em%20CSV%20do%20nosso%20Grupo%20Econ%C3%B4mico%20para%20acessar%20o%20Painel.`}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#470082] hover:bg-[#380068] text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+            >
+              <Mail className="w-3.5 h-3.5 text-[#c9f545]" />
+              <span>Solicitar ao CS</span>
+            </a>
+            <button
+              type="button"
+              onClick={handleCopyEmail}
+              title="Copiar e-mail cs@metarh.com.br"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white hover:bg-purple-100/80 text-slate-700 hover:text-[#470082] border border-purple-200 text-xs font-bold transition-all cursor-pointer"
+            >
+              {copiedEmail ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                  <span className="text-emerald-700">Copiado!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5 text-slate-500" />
+                  <span>cs@metarh.com.br</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* STEP 2: GROUP SELECTION IF PENDING DATASET IS PRESENT */}
