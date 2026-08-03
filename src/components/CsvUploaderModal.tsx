@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { X, Upload, FileText, CheckCircle, AlertTriangle, Info, Mail } from 'lucide-react';
-import { parseCsvString } from '../utils/csvParser';
+import { parseCsvString, readCsvFileContent } from '../utils/csvParser';
 import { CsvDataset } from '../types';
 import { GrupoEconomicoSelector } from './GrupoEconomicoSelector';
 
@@ -20,17 +20,18 @@ export const CsvUploaderModal: React.FC<CsvUploaderModalProps> = ({ onClose, onA
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = (file: File) => {
+  const handleFileSelect = async (file: File) => {
     if (!file) return;
     setFilename(file.name);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const content = e.target?.result as string;
+    try {
+      const content = await readCsvFileContent(file);
       if (content) {
         processContent(content, file.name);
       }
-    };
-    reader.readAsText(file, 'UTF-8');
+    } catch (err: any) {
+      setErrorMsg('Erro ao ler CSV: ' + (err.message || 'Formato inválido'));
+      setParsedPreview(null);
+    }
   };
 
   const processContent = (content: string, name: string) => {

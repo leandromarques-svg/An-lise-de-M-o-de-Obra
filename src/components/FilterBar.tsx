@@ -2,6 +2,7 @@ import React from 'react';
 import { Columns, RotateCcw, Search, User, X } from 'lucide-react';
 import { FilterState } from '../types';
 import { SearchableSelect, SelectOption } from './SearchableSelect';
+import { MultiSearchableSelect } from './MultiSearchableSelect';
 
 interface FilterBarProps {
   filterState: FilterState;
@@ -36,8 +37,6 @@ const MONTH_OPTIONS: SelectOption[] = [
 ];
 
 const AREA_OPTIONS: SelectOption[] = [
-  { value: 'todos', label: 'Todas as Áreas' },
-  { value: 'pontos_focais', label: 'RH, Financeiro e Compras' },
   { value: 'rh', label: 'RH & Gestão de Pessoas' },
   { value: 'financeiro', label: 'Financeiro & Controladoria' },
   { value: 'compras', label: 'Compras & Suprimentos' },
@@ -70,6 +69,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
     Boolean(filterState.anoFilter) ||
     Boolean(filterState.mesFilter) ||
     Boolean(filterState.nomeFilter) ||
+    (filterState.selectedAreas && filterState.selectedAreas.length > 0) ||
     (Boolean(filterState.areaEstrategicaFilter) && filterState.areaEstrategicaFilter !== 'todos') ||
     Object.keys(filterState.columnFilters).some((k) => filterState.columnFilters[k]);
 
@@ -140,12 +140,12 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           </button>
         </div>
 
-        {/* 2. Área / Departamento Select */}
-        <SearchableSelect
+        {/* 2. Área / Departamento MultiSelect */}
+        <MultiSearchableSelect
           label="Área / Departamento"
-          value={filterState.areaEstrategicaFilter || ''}
+          selectedValues={filterState.selectedAreas || []}
           options={AREA_OPTIONS}
-          onChange={(val) => onFilterChange({ areaEstrategicaFilter: val })}
+          onChange={(vals) => onFilterChange({ selectedAreas: vals })}
         />
 
         {/* 3. Vínculo Select */}

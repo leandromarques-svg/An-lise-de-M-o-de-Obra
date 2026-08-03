@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Upload, FileText, FileSpreadsheet, ArrowRight, ShieldCheck, ArrowLeft, Mail, Info, Check, Copy } from 'lucide-react';
 import { MetarhLogo } from './MetarhLogo';
-import { parseCsvString } from '../utils/csvParser';
+import { parseCsvString, readCsvFileContent } from '../utils/csvParser';
 import { CsvDataset } from '../types';
 import { GrupoEconomicoSelector } from './GrupoEconomicoSelector';
 
@@ -52,33 +52,33 @@ export const UploadLandingScreen: React.FC<UploadLandingScreenProps> = ({
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const text = event.target?.result as string;
+      try {
+        const text = await readCsvFileContent(file);
         if (text) {
           handleRawContentReady(text, file.name);
         }
-      };
-      reader.readAsText(file, 'ISO-8859-1'); // Common Portuguese CSV encoding fallback
+      } catch (err) {
+        console.error('Erro ao ler CSV:', err);
+      }
     }
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setDragActive(false);
     const file = e.dataTransfer.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const text = event.target?.result as string;
+      try {
+        const text = await readCsvFileContent(file);
         if (text) {
           handleRawContentReady(text, file.name);
         }
-      };
-      reader.readAsText(file);
+      } catch (err) {
+        console.error('Erro ao ler CSV:', err);
+      }
     }
   };
 

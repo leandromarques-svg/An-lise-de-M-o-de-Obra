@@ -1,5 +1,5 @@
 import { CsvRow } from '../types';
-import { parseSalaryNumber, formatCurrency } from './csvParser';
+import { parseSalaryNumber, formatCurrency, getRowValue } from './csvParser';
 
 export interface ModalityStat {
   name: string;
@@ -105,23 +105,100 @@ export function extractYear(dateStr?: string): string | null {
   const str = String(dateStr).trim();
   if (!str) return null;
 
-  // DD/MM/YYYY
-  const partsSlash = str.split('/');
+  const lower = str.toLowerCase();
+  if (
+    str === '-' ||
+    str === '--' ||
+    lower === 'n/a' ||
+    lower === 'na' ||
+    lower === 'null' ||
+    lower === 'sem data' ||
+    lower === 'ativo' ||
+    lower === '00/00/0000' ||
+    lower === '00/00/00' ||
+    lower === '00-00-0000' ||
+    lower === '00.00.0000' ||
+    lower === '31/12/9999' ||
+    lower === '1900-01-01'
+  ) {
+    return null;
+  }
+
+  // DD/MM/YYYY or D/M/YYYY or DD.MM.YYYY
+  const normalized = str.replace(/\./g, '/');
+  const partsSlash = normalized.split('/');
   if (partsSlash.length === 3) {
     const y = partsSlash[2].trim();
-    if (y.length === 4 && !isNaN(Number(y))) return y;
+    if (y.length === 4 && !isNaN(Number(y))) {
+      const numY = Number(y);
+      if (numY >= 1970 && numY <= 2035) return String(numY);
+    }
+    if (y.length === 2 && !isNaN(Number(y))) {
+      const numY = Number(y);
+      const fullY = numY > 50 ? 1900 + numY : 2000 + numY;
+      if (fullY >= 1970 && fullY <= 2035) return String(fullY);
+    }
   }
 
   // YYYY-MM-DD
   const partsDash = str.split('-');
   if (partsDash.length === 3) {
     const y0 = partsDash[0].trim();
-    if (y0.length === 4 && !isNaN(Number(y0))) return y0;
+    if (y0.length === 4 && !isNaN(Number(y0))) {
+      const numY = Number(y0);
+      if (numY >= 1970 && numY <= 2035) return String(numY);
+    }
     const y2 = partsDash[2].trim();
-    if (y2.length === 4 && !isNaN(Number(y2))) return y2;
+    if (y2.length === 4 && !isNaN(Number(y2))) {
+      const numY = Number(y2);
+      if (numY >= 1970 && numY <= 2035) return String(numY);
+    }
   }
 
   return null;
+}
+
+export function getAdmissaoDateStr(row: CsvRow): string {
+  return getRowValue(
+    row,
+    'Data Admissão',
+    'Data Admissao',
+    'Data de Admissão',
+    'Data de Admissao',
+    'Dt Admissao',
+    'Dt. Admissão',
+    'Dt.Admissão',
+    'Data Inicio',
+    'Data Início',
+    'Admissão',
+    'Admissao'
+  );
+}
+
+export function getDemissaoDateStr(row: CsvRow): string {
+  return getRowValue(
+    row,
+    'Data Demissão',
+    'Data Demisao',
+    'Data de Demissão',
+    'Data de Demisao',
+    'Data Desligamento',
+    'Data de Desligamento',
+    'Dt Demissao',
+    'Dt. Demissão',
+    'Dt.Demissão',
+    'Data Rescisao',
+    'Data Rescisão',
+    'Demissão',
+    'Demisao',
+    'Desligamento',
+    'Data Saida',
+    'Data Saída'
+  );
+}
+
+export function isValidDemissaoDate(dateStr?: string): boolean {
+  return extractYear(dateStr) !== null;
 }
 
 export function isCargoAreaMatch(cargoStr?: string, area?: string): boolean {
@@ -361,28 +438,22 @@ export function computeCsAnalytics(rows: CsvRow[]): CsDashboardData {
     if (salVal > maxSalary) maxSalary = salVal;
 
     // Dates for Yearly Breakdown
-    const admDate = row['Data Admissão'] || row['Data Admissao'] || row['Admissão'] || row['Admissao'];
+    const admDate = getAdmissaoDateStr(row);
     const admYear = extractYear(admDate);
     if (admYear) {
       admissoesMap[admYear] = (admissoesMap[admYear] || 0) + 1;
     }
 
-    const demDateStr =
-      row['Data Demissão'] ||
-      row['Data Demisao'] ||
-      row['Data Demissão '] ||
-      row['Data Demisao '] ||
-      row['Demissão'] ||
-      row['Demissao'];
+    const demDateStr = getDemissaoDateStr(row);
     const demYear = extractYear(demDateStr);
-    if (demYear) {
-      desligamentosMap[demYear] = (desligamentosMap[demYear] || 0) + 1;
-    }
 
-    // Active vs Desligado strictly determined by presence of Data Demissão
-    const hasDemDate = Boolean(demDateStr && demDateStr.trim().length > 0 && demDateStr.trim() !== '-');
+    // Active vs Desligado strictly determined by presence of a valid demission date/year
+    const hasDemDate = demYear !== null;
     if (hasDemDate) {
       finishedCount += 1;
+      if (demYear) {
+        desligamentosMap[demYear] = (desligamentosMap[demYear] || 0) + 1;
+      }
     } else {
       activeCount += 1;
     }

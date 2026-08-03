@@ -7,7 +7,14 @@ import {
   exportToCsvString,
   downloadFile,
 } from './utils/csvParser';
-import { computeCsAnalytics, extractYear, extractMonth, isCargoAreaMatch } from './utils/csAnalytics';
+import {
+  computeCsAnalytics,
+  extractYear,
+  extractMonth,
+  isCargoAreaMatch,
+  getAdmissaoDateStr,
+  getDemissaoDateStr,
+} from './utils/csAnalytics';
 import {
   CsvDataset,
   CsvRow,
@@ -180,8 +187,8 @@ export default function App() {
     return Array.from(set).sort().reverse();
   }, [dataset]);
 
-  // Filter rows
-  const filteredRows = useMemo(() => {
+  // Base Filtered rows (all filters except anoFilter and mesFilter, used for timeline analytics)
+  const baseFilteredRows = useMemo(() => {
     return dataset.rows.filter((row) => {
       // 1. Global Search
       if (filterState.globalSearch) {
@@ -193,8 +200,8 @@ export default function App() {
       }
 
       // 2. Status Filter
-      const dem = row['Data Demissão'] || row['Data Demissao'] || row['Demissão'] || row['Demissao'];
-      const isDesligado = Boolean(dem && dem.trim().length > 0 && dem.trim() !== '-');
+      const dem = getDemissaoDateStr(row);
+      const isDesligado = extractYear(dem) !== null;
       if (filterState.statusFilter === 'ativos' && isDesligado) return false;
       if (filterState.statusFilter === 'desligados' && !isDesligado) return false;
 
@@ -262,35 +269,7 @@ export default function App() {
         if (rh !== filterState.rhFocalFilter) return false;
       }
 
-      // 9. Ano Filter
-      if (filterState.anoFilter) {
-        const adm = row['Data Admissão'] || row['Data Admissao'] || row['Admissão'];
-        const demDate = row['Data Demissão'] || row['Data Demissao'] || row['Demissão'];
-        const admYear = extractYear(adm);
-        const demYear = extractYear(demDate);
-        if (admYear !== filterState.anoFilter && demYear !== filterState.anoFilter) {
-          return false;
-        }
-      }
-
-      // 10. Mês Filter
-      if (filterState.mesFilter) {
-        const adm = row['Data Admissão'] || row['Data Admissao'] || row['Admissão'];
-        const demDate = row['Data Demissão'] || row['Data Demissao'] || row['Demissão'];
-        const vcto = row['Data Vcto Contrato'] || row['Data Vencimento Contrato'] || row['Data Vcto Prorrogação'];
-        const admMonth = extractMonth(adm);
-        const demMonth = extractMonth(demDate);
-        const vctoMonth = extractMonth(vcto);
-        if (
-          admMonth !== filterState.mesFilter &&
-          demMonth !== filterState.mesFilter &&
-          vctoMonth !== filterState.mesFilter
-        ) {
-          return false;
-        }
-      }
-
-      // 11. Nome Filter
+      // 9. Nome Filter
       if (filterState.nomeFilter) {
         const query = filterState.nomeFilter.toLowerCase().trim();
         const nameVal =
@@ -306,8 +285,17 @@ export default function App() {
         }
       }
 
-      // 12. Área Estratégica (Mapeamento Focal: RH, Financeiro, Compras) Filter
-      if (filterState.areaEstrategicaFilter && filterState.areaEstrategicaFilter !== 'todos') {
+      // 10. Área Estratégica (RH, Financeiro, Compras) Multi-Filter
+      if (filterState.selectedAreas && filterState.selectedAreas.length > 0) {
+        const cargo = row['Cargo ou Função'] || row['Cargo'] || '';
+        const dept = row['Departamento'] || row['Setor'] || row['Área'] || '';
+        const matchesAny = filterState.selectedAreas.some((areaVal) => {
+          if (isCargoAreaMatch(cargo, areaVal)) return true;
+          if (dept && dept.toLowerCase().includes(areaVal.toLowerCase())) return true;
+          return false;
+        });
+        if (!matchesAny) return false;
+      } else if (filterState.areaEstrategicaFilter && filterState.areaEstrategicaFilter !== 'todos') {
         const cargo = row['Cargo ou Função'] || row['Cargo'] || '';
         if (!isCargoAreaMatch(cargo, filterState.areaEstrategicaFilter)) {
           return false;
@@ -317,6 +305,41 @@ export default function App() {
       return true;
     });
   }, [dataset, filterState]);
+
+  // Final Filtered rows (applying anoFilter and mesFilter to baseFilteredRows)
+  const filteredRows = useMemo(() => {
+    return baseFilteredRows.filter((row) => {
+      // Ano Filter
+      if (filterState.anoFilter) {
+        const adm = getAdmissaoDateStr(row);
+        const demDate = getDemissaoDateStr(row);
+        const admYear = extractYear(adm);
+        const demYear = extractYear(demDate);
+        if (admYear !== filterState.anoFilter && demYear !== filterState.anoFilter) {
+          return false;
+        }
+      }
+
+      // Mês Filter
+      if (filterState.mesFilter) {
+        const adm = getAdmissaoDateStr(row);
+        const demDate = getDemissaoDateStr(row);
+        const vcto = row['Data Vcto Contrato'] || row['Data Vencimento Contrato'] || row['Data Vcto Prorrogação'];
+        const admMonth = extractMonth(adm);
+        const demMonth = extractMonth(demDate);
+        const vctoMonth = extractMonth(vcto);
+        if (
+          admMonth !== filterState.mesFilter &&
+          demMonth !== filterState.mesFilter &&
+          vctoMonth !== filterState.mesFilter
+        ) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [baseFilteredRows, filterState.anoFilter, filterState.mesFilter]);
 
   // Sort rows
   const sortedRows = useMemo(() => {
@@ -341,10 +364,10 @@ export default function App() {
     });
   }, [filteredRows, sortConfig, columns]);
 
-  // Compute CS Analytics for Executive Dashboard
+  // Compute CS Analytics for Executive Dashboard using baseFilteredRows (preserving yearly timeline)
   const csAnalyticsData = useMemo(() => {
-    return computeCsAnalytics(filteredRows);
-  }, [filteredRows]);
+    return computeCsAnalytics(baseFilteredRows);
+  }, [baseFilteredRows]);
 
   // Summary Metrics calculation for table view
   const summaryMetrics: SummaryMetrics = useMemo(() => {
@@ -633,6 +656,15 @@ export default function App() {
             onOpenUploader={() => setIsUploaderOpen(true)}
             onSwitchToTable={() => setActiveView('table')}
             onSwitchToContracts={() => setActiveView('contracts')}
+            onSelectYear={(year) => {
+              setFilterState((prev) => ({ ...prev, anoFilter: year }));
+              if (year) {
+                showToast(`Filtro de ano alterado para ${year}`);
+              } else {
+                showToast('Filtro de ano removido');
+              }
+            }}
+            selectedYear={filterState.anoFilter}
           />
         )}
 
@@ -645,6 +677,15 @@ export default function App() {
             onOpenUploader={() => setIsUploaderOpen(true)}
             onSwitchToTable={() => setActiveView('table')}
             standaloneContractsOnly={true}
+            onSelectYear={(year) => {
+              setFilterState((prev) => ({ ...prev, anoFilter: year }));
+              if (year) {
+                showToast(`Filtro de ano alterado para ${year}`);
+              } else {
+                showToast('Filtro de ano removido');
+              }
+            }}
+            selectedYear={filterState.anoFilter}
           />
         )}
 

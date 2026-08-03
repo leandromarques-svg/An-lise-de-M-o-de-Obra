@@ -25,6 +25,7 @@ import {
   CalendarPlus,
   Download,
   ExternalLink,
+  X,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -50,6 +51,8 @@ interface CsClientDashboardProps {
   onSwitchToTable: () => void;
   onSwitchToContracts?: () => void;
   standaloneContractsOnly?: boolean;
+  onSelectYear?: (year: string) => void;
+  selectedYear?: string;
 }
 
 function formatCalendarDates(dateStr?: string): { isoStart: string; isoEnd: string; alertDateStr: string } | null {
@@ -135,6 +138,8 @@ export const CsClientDashboard: React.FC<CsClientDashboardProps> = ({
   onSwitchToTable,
   onSwitchToContracts,
   standaloneContractsOnly = false,
+  onSelectYear,
+  selectedYear,
 }) => {
   const [cargoSortMode, setCargoSortMode] = useState<'count' | 'avgSalary' | 'totalSalary'>('count');
   const [contractTab, setContractTab] = useState<'all' | 'ativos' | 'a_vencer' | 'vencidos' | 'prorrogados'>('all');
@@ -212,6 +217,11 @@ export const CsClientDashboard: React.FC<CsClientDashboardProps> = ({
     }
     return Math.max(...sortedCargos.map((c) => c.count));
   }, [sortedCargos, cargoSortMode]);
+
+  const selectedYearStat = useMemo(() => {
+    if (!selectedYear) return null;
+    return data.yearlyStats.find((st) => String(st.year) === String(selectedYear)) || null;
+  }, [data.yearlyStats, selectedYear]);
 
   if (standaloneContractsOnly) {
     return (
@@ -760,46 +770,71 @@ export const CsClientDashboard: React.FC<CsClientDashboardProps> = ({
         </div>
       </div>
 
-      {/* Status Breakdown Strip: Ativos, Desligados & Contratos Prorrogados */}
+      {/* Selected Year Filter Banner */}
+      {selectedYear && (
+        <div className="bg-purple-50 border border-purple-200/90 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 text-xs font-bold text-[#470082] shadow-2xs">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-[#470082] shrink-0" />
+            <span>
+              Visão filtrada pelo ano de <strong>{selectedYear}</strong> — Exibindo contratações (admissões), desligamentos e saldo líquido do período.
+            </span>
+          </div>
+          {onSelectYear && (
+            <button
+              onClick={() => onSelectYear('')}
+              className="inline-flex items-center gap-1.5 bg-white border border-purple-300 text-[#470082] px-3 py-1 rounded-lg hover:bg-purple-100 transition-colors cursor-pointer text-xs font-bold shadow-2xs"
+            >
+              <X className="w-3.5 h-3.5 text-[#470082]" />
+              <span>Limpar Filtro de Ano ({selectedYear})</span>
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Status Breakdown Strip: Ativos, Desligados & Contratos Prorrogados / Movimentação do Ano */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {/* Ativos */}
+        {/* Card 1: Ativos / Admissões */}
         <div className="bg-white rounded-xl p-4 border border-emerald-200/80 shadow-2xs flex items-center justify-between">
           <div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-800">
-                Colaboradores Ativos
+                {selectedYear ? `Admissões em ${selectedYear}` : 'Colaboradores Ativos'}
               </span>
             </div>
             <p className="text-2xl font-black text-emerald-950 tracking-tight mt-1">
-              {data.contractStatus.active}
+              {selectedYearStat ? selectedYearStat.admissoes : data.contractStatus.active}
             </p>
-            <p className="text-[11px] text-emerald-700 mt-0.5">
-              {data.totalWorkers > 0
-                ? `${((data.contractStatus.active / data.totalWorkers) * 100).toFixed(1)}% do contingente total`
+            <p className="text-[11px] text-emerald-700 mt-0.5 font-medium">
+              {selectedYear
+                ? `Contratações (entradas) no ano de ${selectedYear}`
+                : data.totalWorkers > 0
+                ? `${((data.contractStatus.active / data.totalWorkers) * 100).toFixed(1)}% do contingente total (Cenário Atual)`
                 : '0%'}
             </p>
           </div>
           <div className="w-10 h-10 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-200 flex items-center justify-center shrink-0">
-            <Users className="w-5 h-5" />
+            {selectedYear ? <UserPlus className="w-5 h-5" /> : <Users className="w-5 h-5" />}
           </div>
         </div>
 
-        {/* Desligados */}
+        {/* Card 2: Desligados / Demissões */}
         <div className="bg-white rounded-xl p-4 border border-rose-200/80 shadow-2xs flex items-center justify-between">
           <div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-rose-800">
-                Colaboradores Desligados
+                {selectedYear ? `Desligamentos em ${selectedYear}` : 'Colaboradores Desligados'}
               </span>
             </div>
             <p className="text-2xl font-black text-rose-950 tracking-tight mt-1">
-              {data.contractStatus.finished}
+              {selectedYearStat ? selectedYearStat.desligamentos : data.contractStatus.finished}
             </p>
-            <p className="text-[11px] text-rose-700 mt-0.5">
-              {data.totalWorkers > 0
-                ? `${((data.contractStatus.finished / data.totalWorkers) * 100).toFixed(1)}% do contingente total`
+            <p className="text-[11px] text-rose-700 mt-0.5 font-medium">
+              {selectedYear
+                ? `Desligamentos (saídas) no ano de ${selectedYear}`
+                : data.totalWorkers > 0
+                ? `${((data.contractStatus.finished / data.totalWorkers) * 100).toFixed(1)}% do contingente total (Histórico Acumulado)`
                 : '0%'}
             </p>
           </div>
@@ -808,24 +843,30 @@ export const CsClientDashboard: React.FC<CsClientDashboardProps> = ({
           </div>
         </div>
 
-        {/* Contratos Prorrogados */}
+        {/* Card 3: Contratos Prorrogados / Saldo Líquido */}
         <div className="bg-white rounded-xl p-4 border border-purple-200/80 shadow-2xs flex items-center justify-between">
           <div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-[#470082]"></span>
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#470082]">
-                Contratos Prorrogados
+                {selectedYear ? `Saldo Líquido em ${selectedYear}` : 'Contratos Prorrogados'}
               </span>
             </div>
             <p className="text-2xl font-black text-[#470082] tracking-tight mt-1">
-              {data.contractExpirations.prorrogadosCount}
+              {selectedYearStat
+                ? selectedYearStat.saldo > 0
+                  ? `+${selectedYearStat.saldo}`
+                  : selectedYearStat.saldo
+                : data.contractExpirations.prorrogadosCount}
             </p>
-            <p className="text-[11px] text-purple-700 mt-0.5">
-              {data.contractExpirations.prorrogadosPercentage}% com aditivo contratual
+            <p className="text-[11px] text-purple-700 mt-0.5 font-medium">
+              {selectedYearStat
+                ? `Resultado líquido (Admissões ${selectedYearStat.admissoes} - Desligamentos ${selectedYearStat.desligamentos})`
+                : `${data.contractExpirations.prorrogadosPercentage}% com aditivo contratual`}
             </p>
           </div>
           <div className="w-10 h-10 bg-purple-50 text-[#470082] rounded-xl border border-purple-200 flex items-center justify-center shrink-0">
-            <RefreshCw className="w-5 h-5" />
+            {selectedYear ? <TrendingUp className="w-5 h-5" /> : <RefreshCw className="w-5 h-5" />}
           </div>
         </div>
       </div>
@@ -861,7 +902,16 @@ export const CsClientDashboard: React.FC<CsClientDashboardProps> = ({
             {/* Chart: Bar chart grouped by year */}
             <div className="lg:col-span-2 h-64 sm:h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.yearlyStats} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
+                <BarChart
+                  data={data.yearlyStats}
+                  margin={{ top: 10, right: 10, left: 0, bottom: 20 }}
+                  onClick={(e) => {
+                    if (e && e.activeLabel && onSelectYear) {
+                      onSelectYear(String(e.activeLabel));
+                    }
+                  }}
+                  style={{ cursor: onSelectYear ? 'pointer' : 'default' }}
+                >
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="year" tick={{ fontSize: 12, fontWeight: 600, fill: '#470082' }} />
                   <YAxis tick={{ fontSize: 11 }} />
@@ -876,40 +926,85 @@ export const CsClientDashboard: React.FC<CsClientDashboardProps> = ({
                       value === 'admissoes' ? 'Contratações (Admissões)' : 'Desligamentos (Demissões)'
                     }
                   />
-                  <Bar dataKey="admissoes" fill="#10b981" radius={[4, 4, 0, 0]} name="admissoes" />
-                  <Bar dataKey="desligamentos" fill="#f43f5e" radius={[4, 4, 0, 0]} name="desligamentos" />
+                  <Bar
+                    dataKey="admissoes"
+                    fill="#10b981"
+                    radius={[4, 4, 0, 0]}
+                    name="admissoes"
+                    onClick={(entry: any) => {
+                      if (entry && entry.year && onSelectYear) {
+                        onSelectYear(String(entry.year));
+                      }
+                    }}
+                  />
+                  <Bar
+                    dataKey="desligamentos"
+                    fill="#f43f5e"
+                    radius={[4, 4, 0, 0]}
+                    name="desligamentos"
+                    onClick={(entry: any) => {
+                      if (entry && entry.year && onSelectYear) {
+                        onSelectYear(String(entry.year));
+                      }
+                    }}
+                  />
                 </BarChart>
               </ResponsiveContainer>
+              <p className="text-[11px] text-slate-400 text-center mt-1 font-medium">
+                💡 Clique em uma barra ou ano no resumo para filtrar os dados por aquele período.
+              </p>
             </div>
 
             {/* Summary List per Year */}
             <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/80 space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-[#470082] border-b border-slate-200 pb-2">
-                Consolidado Anual de Movimentação
-              </h3>
-              <div className="divide-y divide-slate-200/60 max-h-56 overflow-y-auto text-xs">
-                {data.yearlyStats.map((stat) => (
-                  <div key={stat.year} className="py-2.5 flex items-center justify-between">
-                    <div>
-                      <span className="font-extrabold text-slate-900 text-sm block">
-                        Ano {stat.year}
-                      </span>
-                      <span className="text-[11px] text-slate-500">
-                        Saldo líquido: <strong className={stat.saldo >= 0 ? 'text-emerald-700' : 'text-rose-700'}>{stat.saldo >= 0 ? `+${stat.saldo}` : stat.saldo}</strong>
-                      </span>
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[#470082]">
+                  Consolidado Anual
+                </h3>
+                {selectedYear && (
+                  <button
+                    onClick={() => onSelectYear && onSelectYear('')}
+                    className="text-[11px] font-extrabold text-[#470082] hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    Limpar ({selectedYear}) <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+              <div className="divide-y divide-slate-200/60 max-h-56 overflow-y-auto text-xs pr-1">
+                {data.yearlyStats.map((stat) => {
+                  const isSelected = selectedYear === stat.year;
+                  return (
+                    <div
+                      key={stat.year}
+                      onClick={() => onSelectYear && onSelectYear(isSelected ? '' : stat.year)}
+                      className={`py-2 px-2 flex items-center justify-between rounded-xl transition-all cursor-pointer select-none my-1 ${
+                        isSelected
+                          ? 'bg-purple-100 border border-purple-300 text-[#470082] shadow-2xs font-bold'
+                          : 'hover:bg-purple-50/80 hover:border-purple-100 border border-transparent'
+                      }`}
+                      title={`Clique para filtrar pelo ano ${stat.year}`}
+                    >
+                      <div>
+                        <span className="font-extrabold text-slate-900 text-sm block">
+                          Ano {stat.year} {isSelected && '✓'}
+                        </span>
+                        <span className="text-[11px] text-slate-500">
+                          Saldo líquido: <strong className={stat.saldo >= 0 ? 'text-emerald-700' : 'text-rose-700'}>{stat.saldo >= 0 ? `+${stat.saldo}` : stat.saldo}</strong>
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold">
+                          <UserPlus className="w-3 h-3 mr-1" />
+                          {stat.admissoes}
+                        </span>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200 text-[11px] font-bold">
+                          <UserMinus className="w-3 h-3 mr-1" />
+                          {stat.desligamentos}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold">
-                        <UserPlus className="w-3 h-3 mr-1" />
-                        {stat.admissoes} adm.
-                      </span>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200 text-[11px] font-bold">
-                        <UserMinus className="w-3 h-3 mr-1" />
-                        {stat.desligamentos} des.
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
